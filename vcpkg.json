@@ -1,0 +1,14 @@
+{
+  "name": "chip-8-emulator",
+  "version-string": "0.1.0",
+  "dependencies": [
+    {
+      "name": "sfml",
+      "features": [
+        "graphics",
+        "window",
+        "audio"
+      ]
+    }
+  ]
+}
