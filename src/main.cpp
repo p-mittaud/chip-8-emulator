@@ -24,12 +24,23 @@ int main()
     Emulator emulator;
     emulator.LoadROM(romFile);
 
+    sf::Clock clock;
+    const sf::Time timePerFrame60Hz = sf::seconds(1.f / 60.f);
+    sf::Time timeSinceLastUpdate = sf::Time::Zero;
+
     while (window.isOpen())
     {
         while (const std::optional event = window.pollEvent())
         {
             if (event->is<sf::Event::Closed>())
                 window.close();
+        }
+
+        timeSinceLastUpdate = clock.restart();
+        while (timeSinceLastUpdate >= timePerFrame60Hz)
+        {
+            timeSinceLastUpdate -= timePerFrame60Hz;
+            emulator.DecrementTimers();
         }
 
         emulator.ProcessInstruction();

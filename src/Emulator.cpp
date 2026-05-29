@@ -4,6 +4,7 @@
 #include <iostream>
 #include <bitset>
 #include <cstdint>
+#include <windows.h>
 
 Emulator::Emulator()
 {
@@ -25,6 +26,19 @@ bool Emulator::LoadROM(const std::string& InFile)
     file.close();
 
     return true;
+}
+
+void Emulator::DecrementTimers()
+{
+    if (DelayTimer > 0)
+    {
+        DelayTimer--;
+    }
+    if (SoundTimer > 0)
+    {
+        SoundTimer--;
+        Beep(523, 1.f / 60.f);
+    }
 }
 
 void Emulator::ProcessInstruction()
@@ -103,28 +117,43 @@ void Emulator::ProcessInstruction()
                 Register[X] ^= Register[Y];
                     break;
                 case 0x4:
-                Register[0xF] = Register[X] + Register[Y] > Register[X] ? 0 : 1;
-                Register[X] += Register[Y];
+                {
+                    unsigned char overlfow = (unsigned char)(Register[X] + Register[Y]) < Register[X] ? 1 : 0;
+                    Register[X] += Register[Y];
+                    Register[0xF] = overlfow;
+                }
                     break;
                 case 0x5:
-                Register[0xF] = Register[X] >= Register[Y] ? 1 : 0;
-                Register[X] -= Register[Y];
+                {
+                    unsigned char flag = Register[X] >= Register[Y];
+                    Register[X] -= Register[Y];
+                    Register[0xF] = flag;
+                }
                     break;
                 case 0x6:
-                if (UpdateVXBeforeShift)
+                {
+                    if (UpdateVXBeforeShift)
                     Register[X] = Register[Y];
-                Register[0xF] = Register[X] & 0x1u;
-                Register[X] = Register[X] >> 1;
+                    unsigned char flag = Register[X] & 0x1u;
+                    Register[X] = Register[X] >> 1;
+                    Register[0xF] = flag;
+                }
                     break;
                 case 0x7:
-                Register[0xF] = Register[Y] >= Register[X] ? 1 : 0;
-                Register[X] = Register[Y] - Register[X];
+                {
+                    unsigned char flag = Register[Y] >= Register[X] ? 1 : 0;
+                    Register[X] = Register[Y] - Register[X];
+                    Register[0xF] = flag;
+                }
                     break;
                 case 0xE:
-                if (UpdateVXBeforeShift)
-                    Register[X] = Register[Y];
-                Register[0xF] = Register[X] >> 7u;
-                Register[X] = Register[X] << 1;
+                {
+                    if (UpdateVXBeforeShift)
+                        Register[X] = Register[Y];
+                    unsigned char flag = Register[X] >> 7u;
+                    Register[X] = Register[X] << 1;
+                    Register[0xF] = flag;
+                }
                     break;
                 default:
                     std::cerr << "Case " << N << " not handled!" << std::endl;
@@ -175,6 +204,45 @@ void Emulator::ProcessInstruction()
                 }
             }
         }
+            break;
+        case 0xF:
+            switch (NN)
+            {
+                case 0x07:
+                    Register[X] = DelayTimer;
+                    break;
+                case 0x15:
+                    DelayTimer = Register[X];
+                    break;
+                case 0x18:
+                    SoundTimer = Register[X];
+                    break;
+                case 0x1E:
+                    I += Register[X];
+                    break;
+                case 0x33:
+                    std::cout << "Register[X] = " << std::dec << (int)Register[X] << std::endl;
+                    std::cout << (Register[X] / 100) % 10 << "/" << (Register[X] / 10) % 10 << "/" << Register[X] % 10 << std::endl;
+                    *(I + 2) = (char)(Register[X] % 10);
+                    *(I + 1) = (char)((Register[X] / 10) % 10);
+                    *(I + 0) = (char)((Register[X] / 100) % 10);
+                    break;
+                case 0x55:
+                    for (unsigned char i = 0; i <= X; i++)
+                    {
+                        *(I + i) = Register[i];
+                    }
+                    break;
+                case 0x65:
+                    std::cout << std::dec << "X is " << (int)X << std::endl;
+                    for (unsigned char i = 0; i <= X; i++)
+                    {
+                        Register[i] = *(I + i);
+                    }
+                    break;
+                default:
+                    std::cerr << std::hex << (int)NN << " is not handled!" << std::endl;
+            }
             break;
         default:
             std::cerr << std::hex << "Opcode " << (int)Opcode << " not handled!" << std::dec << std::endl;

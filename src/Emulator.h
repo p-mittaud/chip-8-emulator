@@ -12,6 +12,7 @@ public:
 
     bool LoadROM(const std::string& InFile);
 
+    void DecrementTimers();
     void ProcessInstruction();
 
     const bool* GetDisplay() const { return Display; }
@@ -21,6 +22,9 @@ private:
 
     char MemoryBuffer[4096]{0};
     unsigned char Register[16]{0};
+
+    unsigned char DelayTimer{0};
+    unsigned char SoundTimer{255};
 
     std::stack<char*> Stack{};
 
