@@ -52,22 +52,97 @@ void Emulator::ProcessInstruction()
                     Display[i] = false;
                 }
             }
+            else if (NNN == 0x0EE)
+            {
+                PC = Stack.top();
+                Stack.pop();
+            }
             break;
 
         case 0x1:
             // Jump to memory address
             PC = &MemoryBuffer[NNN];
             return;
+        case 0x2:
+            // Start subroutine
+            Stack.push(PC);
+            PC = &MemoryBuffer[NNN];
+            // As we jump, we don't want to increment PC
+            return;
+        case 0x3:
+            if (Register[X] == NN)
+                IncrementProgramCounter();
+            break;
+        case 0x4:
+            if (Register[X] != NN)
+                IncrementProgramCounter();
+            break;
+        case 0x5:
+            if (Register[X] == Register[Y])
+                IncrementProgramCounter();
+            break;
         case 0x6:
             Register[X] = NN;
             break;
         case 0x7:
             Register[X] += NN;
             break;
+        case 0x8:
+            switch (N)
+            {
+                case 0x0:
+                Register[X] = Register[Y];
+                    break;
+                case 0x1:
+                Register[X] |= Register[Y];
+                    break;
+                case 0x2:
+                Register[X] &= Register[Y];
+                    break;
+                case 0x3:
+                Register[X] ^= Register[Y];
+                    break;
+                case 0x4:
+                Register[0xF] = Register[X] + Register[Y] > Register[X] ? 0 : 1;
+                Register[X] += Register[Y];
+                    break;
+                case 0x5:
+                Register[0xF] = Register[X] >= Register[Y] ? 1 : 0;
+                Register[X] -= Register[Y];
+                    break;
+                case 0x6:
+                if (UpdateVXBeforeShift)
+                    Register[X] = Register[Y];
+                Register[0xF] = Register[X] & 0x1u;
+                Register[X] = Register[X] >> 1;
+                    break;
+                case 0x7:
+                Register[0xF] = Register[Y] >= Register[X] ? 1 : 0;
+                Register[X] = Register[Y] - Register[X];
+                    break;
+                case 0xE:
+                if (UpdateVXBeforeShift)
+                    Register[X] = Register[Y];
+                Register[0xF] = Register[X] >> 7u;
+                Register[X] = Register[X] << 1;
+                    break;
+                default:
+                    std::cerr << "Case " << N << " not handled!" << std::endl;
+            }
+            break;
+        case 0x9:
+            if (Register[X] != Register[Y])
+                IncrementProgramCounter();
+            break;
         case 0xA:
             I = &MemoryBuffer[NNN];
             break;
-        // D
+        case 0xB:
+            PC = &MemoryBuffer[NNN + Register[UseCosmacJump ? 0 : X]];
+            return;
+        case 0xC:
+            Register[X] = NN & (unsigned char)(rand() % 0x100);
+            break;
         case 0xD:
         {
             int xCoord = Register[X] % 64;

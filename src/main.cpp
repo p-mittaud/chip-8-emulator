@@ -1,21 +1,24 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <filesystem>
+#include <ctime>
 
 #include "Emulator.h"
 
 int main()
 {
+    srand( (unsigned)time(NULL) );
+
     // Get dimensions
     constexpr uint32_t width = 64u;
     constexpr uint32_t height = 32u;
     uint32_t pixelSize = 10u;
 
-    sf::RenderWindow window(sf::VideoMode({width * pixelSize, height * pixelSize}), "TestProject");
+    sf::RenderWindow window(sf::VideoMode({width * pixelSize, height * pixelSize}), "CHIP-8 Emulator");
 
     std::cout << "Current path is " << std::filesystem::current_path() << '\n';
 
-    std::string romFile("../resources/IBM_Logo.ch8");
+    std::string romFile("../resources/3-corax+.ch8");
 
     // TODO: Add default constructor to directly load ROM
     Emulator emulator;
