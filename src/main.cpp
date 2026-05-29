@@ -18,7 +18,7 @@ int main()
 
     std::cout << "Current path is " << std::filesystem::current_path() << '\n';
 
-    std::string romFile("../resources/3-corax+.ch8");
+    std::string romFile("../resources/IBM_Logo.ch8");
 
     // TODO: Add default constructor to directly load ROM
     Emulator emulator;
