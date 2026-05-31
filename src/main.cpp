@@ -24,9 +24,14 @@ int main()
     Emulator emulator;
     emulator.LoadROM(romFile);
 
+    // TODO: Add to config
+    int instructionsPerSecond{700};
+
     sf::Clock clock;
     const sf::Time timePerFrame60Hz = sf::seconds(1.f / 60.f);
-    sf::Time timeSinceLastUpdate = sf::Time::Zero;
+    const sf::Time timePerInstruction = sf::seconds(1.f / instructionsPerSecond);
+    sf::Time timeSinceLastTimerUpdate = sf::Time::Zero;
+    sf::Time timeSinceLastInstructionUpdate = sf::Time::Zero;
 
     while (window.isOpen())
     {
@@ -34,16 +39,30 @@ int main()
         {
             if (event->is<sf::Event::Closed>())
                 window.close();
+            else if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>())
+            {
+                emulator.SetReleasedKey(static_cast<int>(keyReleased->scancode));
+            }
         }
 
-        timeSinceLastUpdate = clock.restart();
-        while (timeSinceLastUpdate >= timePerFrame60Hz)
+        // TODO: Fix this
+        auto diffTime = clock.restart();
+        timeSinceLastTimerUpdate += diffTime;
+        while (timeSinceLastTimerUpdate >= timePerFrame60Hz)
         {
-            timeSinceLastUpdate -= timePerFrame60Hz;
+            timeSinceLastTimerUpdate -= timePerFrame60Hz;
             emulator.DecrementTimers();
         }
 
-        emulator.ProcessInstruction();
+        timeSinceLastInstructionUpdate += diffTime;
+        while (timeSinceLastInstructionUpdate >= timePerInstruction)
+        {
+            timeSinceLastInstructionUpdate -= timePerInstruction;
+            
+            emulator.ProcessInstruction();
+            emulator.ResetKeypadState();
+        }
+
 
         window.clear(sf::Color::Black);
 

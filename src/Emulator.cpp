@@ -6,10 +6,80 @@
 #include <cstdint>
 #include <windows.h>
 
+#include <cstring>
+
+unsigned char EmulatorFont[80]
+{
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
+bool Keypad::IsKeyPressed(unsigned char InChar) const
+{
+    return sf::Keyboard::isKeyPressed((sf::Keyboard::Scan)Scancodes[InChar]);
+}
+
+void Keypad::SetReleasedKey(int InKey)
+{
+    PressedKeys.push_back(InKey);
+}
+
+void Keypad::ResetKeypadState()
+{
+    PressedKeys.clear();
+}
+
+bool Keypad::IsAnyKeyPressed() const
+{
+    if (PressedKeys.empty())
+    {
+        return false;
+    }
+
+    for (auto scancode : Scancodes)
+    {
+        if (PressedKeys.front() == scancode)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned char Keypad::GetKeyPressed() const
+{
+    for (char res = 0; res < 0x10; res++)
+    {
+        if (Scancodes[res] == PressedKeys.front())
+        {
+            return res;
+        }
+    }
+
+    throw;
+}
+
 Emulator::Emulator()
 {
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
+
+    // Load the font in Memory Buffer
+    std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
 }
 
 bool Emulator::LoadROM(const std::string& InFile)
@@ -205,6 +275,26 @@ void Emulator::ProcessInstruction()
             }
         }
             break;
+        case 0xE:
+            if (NN == 0x9E)
+            {
+                if (keypad.IsKeyPressed(Register[X]))
+                {
+                    IncrementProgramCounter();
+                }
+            }
+            else if (NN == 0xA1)
+            {
+                if (!keypad.IsKeyPressed(Register[X]))
+                {
+                    IncrementProgramCounter();
+                }
+            }
+            else
+            {
+                std::cerr << std::hex << "Invalid NN \"" << (int)NN << "\" for operation " << (int)Opcode << std::dec << std::endl;
+            }
+            break;
         case 0xF:
             switch (NN)
             {
@@ -220,9 +310,10 @@ void Emulator::ProcessInstruction()
                 case 0x1E:
                     I += Register[X];
                     break;
+                case 0x29:
+                    I = &MemoryBuffer[FontOffset + Register[X]];
+                    break;
                 case 0x33:
-                    std::cout << "Register[X] = " << std::dec << (int)Register[X] << std::endl;
-                    std::cout << (Register[X] / 100) % 10 << "/" << (Register[X] / 10) % 10 << "/" << Register[X] % 10 << std::endl;
                     *(I + 2) = (char)(Register[X] % 10);
                     *(I + 1) = (char)((Register[X] / 10) % 10);
                     *(I + 0) = (char)((Register[X] / 100) % 10);
@@ -234,10 +325,19 @@ void Emulator::ProcessInstruction()
                     }
                     break;
                 case 0x65:
-                    std::cout << std::dec << "X is " << (int)X << std::endl;
                     for (unsigned char i = 0; i <= X; i++)
                     {
                         Register[i] = *(I + i);
+                    }
+                    break;
+                case 0x0A:
+                    if (keypad.IsAnyKeyPressed())
+                    {
+                        Register[X] = keypad.GetKeyPressed();
+                    }
+                    else
+                    {
+                        return;
                     }
                     break;
                 default:
@@ -250,6 +350,16 @@ void Emulator::ProcessInstruction()
     }
 
     IncrementProgramCounter();
+}
+
+void Emulator::SetReleasedKey(int InKey)
+{
+    keypad.SetReleasedKey(InKey);
+}
+
+void Emulator::ResetKeypadState()
+{
+    keypad.ResetKeypadState();
 }
 
 void Emulator::IncrementProgramCounter()
