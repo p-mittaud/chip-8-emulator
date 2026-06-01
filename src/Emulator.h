@@ -7,6 +7,8 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <list>
 
+#include <SFML/Audio.hpp>
+
 constexpr uint16_t FontOffset = 0x50u;
 
 using namespace sf::Keyboard;
@@ -77,6 +79,9 @@ private:
     bool UseCosmacJump = true;
 
     Keypad keypad{};
+
+    sf::SoundBuffer soundBuffer;
+    sf::Sound sound;
 };
 
 #endif // __EMULATOR_H__

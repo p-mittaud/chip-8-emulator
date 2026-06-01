@@ -7,6 +7,7 @@
 #include <windows.h>
 
 #include <cstring>
+#include <SFML/Audio.hpp>
 
 unsigned char EmulatorFont[80]
 {
@@ -73,13 +74,16 @@ unsigned char Keypad::GetKeyPressed() const
     throw;
 }
 
-Emulator::Emulator()
+Emulator::Emulator() : soundBuffer("../resources/sounds/beep.wav"), sound(soundBuffer)
 {
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
 
     // Load the font in Memory Buffer
     std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
+
+    sound.setLooping(true);
+    // sound.play();
 }
 
 bool Emulator::LoadROM(const std::string& InFile)
@@ -107,7 +111,11 @@ void Emulator::DecrementTimers()
     if (SoundTimer > 0)
     {
         SoundTimer--;
-        Beep(523, 1.f / 60.f);
+
+        if (SoundTimer == 0)
+        {
+            sound.stop();
+        }
     }
 }
 
@@ -306,6 +314,14 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x18:
                     SoundTimer = Register[X];
+                    if (SoundTimer > 0)
+                    {
+                        sound.play();
+                    }
+                    else
+                    {
+                        sound.pause();
+                    }
                     break;
                 case 0x1E:
                     I += Register[X];
