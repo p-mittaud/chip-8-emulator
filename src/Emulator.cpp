@@ -4,11 +4,10 @@
 #include <iostream>
 #include <bitset>
 #include <cstdint>
-#include <windows.h>
 
 #include <cstring>
-#include <SFML/Audio.hpp>
 
+#include "Input/InputManager.h"
 #include "Sound/SoundManager.h"
 
 unsigned char EmulatorFont[80]
@@ -31,52 +30,7 @@ unsigned char EmulatorFont[80]
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-bool Keypad::IsKeyPressed(unsigned char InChar) const
-{
-    return sf::Keyboard::isKeyPressed((sf::Keyboard::Scan)Scancodes[InChar]);
-}
-
-void Keypad::SetReleasedKey(int InKey)
-{
-    PressedKeys.push_back(InKey);
-}
-
-void Keypad::ResetKeypadState()
-{
-    PressedKeys.clear();
-}
-
-bool Keypad::IsAnyKeyPressed() const
-{
-    if (PressedKeys.empty())
-    {
-        return false;
-    }
-
-    for (auto scancode : Scancodes)
-    {
-        if (PressedKeys.front() == scancode)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-unsigned char Keypad::GetKeyPressed() const
-{
-    for (char res = 0; res < 0x10; res++)
-    {
-        if (Scancodes[res] == PressedKeys.front())
-        {
-            return res;
-        }
-    }
-
-    throw;
-}
-
-Emulator::Emulator(SoundManager* InSMgr) : SoundMgr{InSMgr}
+Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr) : InputMgr{InInputMgr}, SoundMgr{InSMgr}
 {
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
@@ -294,14 +248,14 @@ void Emulator::ProcessInstruction()
         case 0xE:
             if (NN == 0x9E)
             {
-                if (keypad.IsKeyPressed(Register[X]))
+                if (InputMgr && InputMgr->IsKeyPressed(Register[X]))
                 {
                     IncrementProgramCounter();
                 }
             }
             else if (NN == 0xA1)
             {
-                if (!keypad.IsKeyPressed(Register[X]))
+                if (InputMgr && !InputMgr->IsKeyPressed(Register[X]))
                 {
                     IncrementProgramCounter();
                 }
@@ -355,9 +309,9 @@ void Emulator::ProcessInstruction()
                     I += X + 1;
                     break;
                 case 0x0A:
-                    if (keypad.IsAnyKeyPressed())
+                    if (InputMgr && InputMgr->IsAnyKeyReleased())
                     {
-                        Register[X] = keypad.GetKeyPressed();
+                        Register[X] = InputMgr->GetReleasedKey();
                     }
                     else
                     {
@@ -374,16 +328,6 @@ void Emulator::ProcessInstruction()
     }
 
     IncrementProgramCounter();
-}
-
-void Emulator::SetReleasedKey(int InKey)
-{
-    keypad.SetReleasedKey(InKey);
-}
-
-void Emulator::ResetKeypadState()
-{
-    keypad.ResetKeypadState();
 }
 
 void Emulator::IncrementProgramCounter()

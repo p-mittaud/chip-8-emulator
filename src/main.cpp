@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <ctime>
 
-#include "Emulator.h"
+#include "Input/InputManagerSFML.h"
 #include "Sound/SoundManagerSFML.h"
+
+#include "Emulator.h"
 
 int main()
 {
@@ -24,8 +26,10 @@ int main()
     auto soundManager = std::make_unique<SoundManagerSFML>();
     soundManager->LoadBeepSound("../resources/sounds/beep.wav");
 
+    auto inputManager = std::make_unique<InputManagerSFML>();
+
     // TODO: Add default constructor to directly load ROM
-    Emulator emulator(soundManager.get());
+    Emulator emulator(inputManager.get(), soundManager.get());
     emulator.LoadROM(romFile);
 
     // TODO: Add to config
@@ -47,9 +51,9 @@ int main()
         {
             if (event->is<sf::Event::Closed>())
                 window.close();
-            else if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>())
+            if (event.has_value())
             {
-                emulator.SetReleasedKey(static_cast<int>(keyReleased->scancode));
+                inputManager->ProcessEvents(event.value());
             }
         }
 
@@ -75,19 +79,10 @@ int main()
                 }
 
                 emulator.ProcessInstruction();
-                emulator.ResetKeypadState();
+
+                inputManager->ClearReleasedKeys();
             }
         }
-
-        // timeSinceLastInstructionUpdate += diffTime;
-        // while (timeSinceLastInstructionUpdate >= timePerInstruction)
-        // {
-        //     timeSinceLastInstructionUpdate -= timePerInstruction;
-            
-        //     emulator.ProcessInstruction();
-        //     emulator.ResetKeypadState();
-        // }
-
 
         window.clear(sf::Color::Black);
 
@@ -99,7 +94,6 @@ int main()
         {
             if (Display[i])
             {
-                // rectangle.setPosition({(float)(i / 32 * pixelSize), (float)(i % 64 * pixelSize)});
                 rectangle.setPosition({(float)(i % 64 * pixelSize), (float)(i / 64 * pixelSize)});
                 window.draw(rectangle);
             }

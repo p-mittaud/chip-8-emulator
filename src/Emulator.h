@@ -4,48 +4,16 @@
 #include <string>
 #include <stack>
 #include <cstdint>
-#include <SFML/Window/Keyboard.hpp>
-#include <list>
 
 constexpr uint16_t FontOffset = 0x50u;
 
-using namespace sf::Keyboard;
-
-class Keypad
-{
-public:
-    // TODO: Create an abstraction to avoid including SFML in emulator files
-    // TODO: Load from a config file
-    Keypad() = default;
-    virtual ~Keypad() = default;
-
-    bool IsKeyPressed(unsigned char InChar) const;
-
-    void SetReleasedKey(int InKey);
-    void ResetKeypadState();
-
-    bool IsAnyKeyPressed() const;
-    unsigned char GetKeyPressed() const;
-
-private:
-    int Scancodes[0x10]
-    {
-        (int)Scan::Num1, (int)Scan::Num2, (int)Scan::Num3, (int)Scan::Num4,
-        (int)Scan::Q, (int)Scan::W, (int)Scan::E, (int)Scan::R,
-        (int)Scan::A, (int)Scan::S, (int)Scan::D, (int)Scan::F,
-        (int)Scan::Z, (int)Scan::X, (int)Scan::C, (int)Scan::V
-    };
-
-    // List of releasedScancodes this frame
-    std::list<int> PressedKeys{};
-};
-
 class SoundManager;
+class InputManager;
 
 class Emulator
 {
 public:
-    Emulator(SoundManager* InSoundManager);
+    Emulator(InputManager* InInputManager, SoundManager* InSoundManager);
     virtual ~Emulator() = default;
 
     bool LoadROM(const std::string& InFile);
@@ -54,10 +22,6 @@ public:
     void ProcessInstruction();
 
     const bool* GetDisplay() const { return Display; }
-
-    // Keypad functions
-    void SetReleasedKey(int InKey);
-    void ResetKeypadState();
 
     unsigned char GetNextOpcode() const { return (unsigned char)((unsigned char)*PC >> 4); }
 
@@ -68,7 +32,7 @@ private:
     unsigned char Register[16]{0};
 
     unsigned char DelayTimer{0};
-    unsigned char SoundTimer{255};
+    unsigned char SoundTimer{0};
 
     std::stack<char*> Stack{};
 
@@ -80,8 +44,7 @@ private:
     bool UpdateVXBeforeShift = true;
     bool UseCosmacJump = true;
 
-    Keypad keypad{};
-
+    InputManager* InputMgr{};
     SoundManager* SoundMgr{};
 };
 
