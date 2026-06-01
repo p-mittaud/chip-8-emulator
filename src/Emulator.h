@@ -59,6 +59,8 @@ public:
     void SetReleasedKey(int InKey);
     void ResetKeypadState();
 
+    unsigned char GetNextOpcode() const { return (unsigned char)((unsigned char)*PC >> 4); }
+
 private:
     void IncrementProgramCounter();
 
@@ -75,7 +77,7 @@ private:
 
     bool Display[64 * 32]{false}; // Array of pixels
 
-    bool UpdateVXBeforeShift = false;
+    bool UpdateVXBeforeShift = true;
     bool UseCosmacJump = true;
 
     Keypad keypad{};

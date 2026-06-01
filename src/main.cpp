@@ -32,6 +32,10 @@ int main()
     const sf::Time timePerInstruction = sf::seconds(1.f / instructionsPerSecond);
     sf::Time timeSinceLastTimerUpdate = sf::Time::Zero;
     sf::Time timeSinceLastInstructionUpdate = sf::Time::Zero;
+    int instructionsPerFrame = instructionsPerSecond / 60;
+
+    // COSMAC VIP Quirk
+    bool vBlankQuirkActive = true;
 
     while (window.isOpen())
     {
@@ -52,16 +56,33 @@ int main()
         {
             timeSinceLastTimerUpdate -= timePerFrame60Hz;
             emulator.DecrementTimers();
+
+            bool vBlankWait = false;
+            for (int i = 0; i < instructionsPerFrame; i++)
+            {
+                if (vBlankQuirkActive && vBlankWait)
+                {
+                    break;
+                }
+
+                if (emulator.GetNextOpcode() == 0xD)
+                {
+                    vBlankWait = true;
+                }
+
+                emulator.ProcessInstruction();
+                emulator.ResetKeypadState();
+            }
         }
 
-        timeSinceLastInstructionUpdate += diffTime;
-        while (timeSinceLastInstructionUpdate >= timePerInstruction)
-        {
-            timeSinceLastInstructionUpdate -= timePerInstruction;
+        // timeSinceLastInstructionUpdate += diffTime;
+        // while (timeSinceLastInstructionUpdate >= timePerInstruction)
+        // {
+        //     timeSinceLastInstructionUpdate -= timePerInstruction;
             
-            emulator.ProcessInstruction();
-            emulator.ResetKeypadState();
-        }
+        //     emulator.ProcessInstruction();
+        //     emulator.ResetKeypadState();
+        // }
 
 
         window.clear(sf::Color::Black);

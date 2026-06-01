@@ -187,12 +187,18 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x1:
                 Register[X] |= Register[Y];
+                // TODO: Add configuration for SUPER-CHIP and XO-CHIP
+                Register[0xF] = 0;
                     break;
                 case 0x2:
                 Register[X] &= Register[Y];
+                // TODO: Add configuration for SUPER-CHIP and XO-CHIP
+                Register[0xF] = 0;
                     break;
                 case 0x3:
                 Register[X] ^= Register[Y];
+                // TODO: Add configuration for SUPER-CHIP and XO-CHIP
+                Register[0xF] = 0;
                     break;
                 case 0x4:
                 {
@@ -210,8 +216,8 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x6:
                 {
-                    if (UpdateVXBeforeShift)
-                    Register[X] = Register[Y];
+                    if (UpdateVXBeforeShift) // COSMAC VIP Quirk
+                        Register[X] = Register[Y];
                     unsigned char flag = Register[X] & 0x1u;
                     Register[X] = Register[X] >> 1;
                     Register[0xF] = flag;
@@ -226,7 +232,7 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0xE:
                 {
-                    if (UpdateVXBeforeShift)
+                    if (UpdateVXBeforeShift) // COSMAC VIP Quirk
                         Register[X] = Register[Y];
                     unsigned char flag = Register[X] >> 7u;
                     Register[X] = Register[X] << 1;
@@ -339,12 +345,16 @@ void Emulator::ProcessInstruction()
                     {
                         *(I + i) = Register[i];
                     }
+                    // TODO: Add Increment in configuration
+                    I += X + 1;
                     break;
                 case 0x65:
                     for (unsigned char i = 0; i <= X; i++)
                     {
                         Register[i] = *(I + i);
                     }
+                    // TODO: Add Increment in configuration
+                    I += X + 1;
                     break;
                 case 0x0A:
                     if (keypad.IsAnyKeyPressed())
