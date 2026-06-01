@@ -7,8 +7,6 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <list>
 
-#include <SFML/Audio.hpp>
-
 constexpr uint16_t FontOffset = 0x50u;
 
 using namespace sf::Keyboard;
@@ -42,10 +40,12 @@ private:
     std::list<int> PressedKeys{};
 };
 
+class SoundManager;
+
 class Emulator
 {
 public:
-    Emulator();
+    Emulator(SoundManager* InSoundManager);
     virtual ~Emulator() = default;
 
     bool LoadROM(const std::string& InFile);
@@ -82,8 +82,7 @@ private:
 
     Keypad keypad{};
 
-    sf::SoundBuffer soundBuffer;
-    sf::Sound sound;
+    SoundManager* SoundMgr{};
 };
 
 #endif // __EMULATOR_H__

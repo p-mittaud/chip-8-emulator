@@ -4,6 +4,7 @@
 #include <ctime>
 
 #include "Emulator.h"
+#include "Sound/SoundManagerSFML.h"
 
 int main()
 {
@@ -18,10 +19,13 @@ int main()
 
     std::cout << "Current path is " << std::filesystem::current_path() << '\n';
 
-    std::string romFile("../resources/IBM_Logo.ch8");
+    std::string romFile("../resources/IMB_logo.ch8");
+
+    auto soundManager = std::make_unique<SoundManagerSFML>();
+    soundManager->LoadBeepSound("../resources/sounds/beep.wav");
 
     // TODO: Add default constructor to directly load ROM
-    Emulator emulator;
+    Emulator emulator(soundManager.get());
     emulator.LoadROM(romFile);
 
     // TODO: Add to config

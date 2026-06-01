@@ -6,8 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SFML COMPONENTS Graphics Audio Window System REQUIRED)
 
-file(GLOB SOURCES src/*.cpp)
+file(GLOB_RECURSE SOURCES src/*.cpp)
 add_executable(chip-8-emulator ${SOURCES})
+
+message(${SOURCES})
 
 target_link_libraries(chip-8-emulator PRIVATE 
     SFML::Graphics 

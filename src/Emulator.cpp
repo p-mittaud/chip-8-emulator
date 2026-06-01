@@ -9,6 +9,8 @@
 #include <cstring>
 #include <SFML/Audio.hpp>
 
+#include "Sound/SoundManager.h"
+
 unsigned char EmulatorFont[80]
 {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -74,16 +76,13 @@ unsigned char Keypad::GetKeyPressed() const
     throw;
 }
 
-Emulator::Emulator() : soundBuffer("../resources/sounds/beep.wav"), sound(soundBuffer)
+Emulator::Emulator(SoundManager* InSMgr) : SoundMgr{InSMgr}
 {
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
 
     // Load the font in Memory Buffer
     std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
-
-    sound.setLooping(true);
-    // sound.play();
 }
 
 bool Emulator::LoadROM(const std::string& InFile)
@@ -114,7 +113,10 @@ void Emulator::DecrementTimers()
 
         if (SoundTimer == 0)
         {
-            sound.stop();
+            if (SoundMgr)
+            {
+                SoundMgr->PlayBeepSound(false);
+            }
         }
     }
 }
@@ -320,13 +322,9 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x18:
                     SoundTimer = Register[X];
-                    if (SoundTimer > 0)
+                    if (SoundMgr)
                     {
-                        sound.play();
-                    }
-                    else
-                    {
-                        sound.pause();
+                        SoundMgr->PlayBeepSound(SoundTimer > 0);
                     }
                     break;
                 case 0x1E:
