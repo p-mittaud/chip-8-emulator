@@ -21,7 +21,7 @@ int main()
 
     std::cout << "Current path is " << std::filesystem::current_path() << '\n';
 
-    std::string romFile("../resources/IMB_logo.ch8");
+    std::string romFile("../resources/default.ch8");
 
     auto soundManager = std::make_unique<SoundManagerSFML>();
     soundManager->LoadBeepSound("../resources/sounds/beep.wav");
