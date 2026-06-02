@@ -25,19 +25,22 @@ public:
 
     unsigned char GetNextOpcode() const { return (unsigned char)((unsigned char)*PC >> 4); }
 
+    void PrintRegister() const;
+    void PrintMemory() const;
+
 private:
     void IncrementProgramCounter();
 
-    char MemoryBuffer[4096]{0};
+    unsigned char MemoryBuffer[4096]{0};
     unsigned char Register[16]{0};
 
     unsigned char DelayTimer{0};
     unsigned char SoundTimer{0};
 
-    std::stack<char*> Stack{};
+    std::stack<unsigned char*> Stack{};
 
-    char* PC{nullptr};  // The program counter
-    char* I{nullptr};   // The Index Register
+    unsigned char* PC{nullptr};  // The program counter
+    unsigned char* I{nullptr};   // The Index Register
 
     bool Display[64 * 32]{false}; // Array of pixels
 

@@ -49,7 +49,7 @@ bool Emulator::LoadROM(const std::string& InFile)
         return false;
     }
 
-    file.read(&MemoryBuffer[0x200], 4096 - 0x200);
+    file.read(reinterpret_cast<char*>(&MemoryBuffer[0x200]), 4096 - 0x200);
     file.close();
 
     return true;
@@ -328,6 +328,33 @@ void Emulator::ProcessInstruction()
     }
 
     IncrementProgramCounter();
+}
+
+void Emulator::PrintRegister() const
+{
+    std::cout << "=== Printing Register ===" << std::hex << std::endl;
+    for (int i = 0; i < 0x10; i++)
+    {
+        std::cout << (int)Register[i] << "\t";
+        if ((i + 1) % 4 == 0) std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+void Emulator::PrintMemory() const
+{
+    std::cout << "=== Printing Memory ===" << std::hex << std::endl;
+    for (int i = 0; i < 4096; i++)
+    {
+        if (i == 0x200)
+        {
+            std::cout << "--- Loaded ROM ---" << std::endl;
+        }
+
+        std::cout << (uint16_t)MemoryBuffer[i] << "\t";
+        if ((i + 1) % 8 == 0) std::cout << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 void Emulator::IncrementProgramCounter()
