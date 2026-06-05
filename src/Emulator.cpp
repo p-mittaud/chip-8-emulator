@@ -39,6 +39,17 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr) : InputMgr{In
     std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
 }
 
+Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM) : InputMgr{InInputMgr}, SoundMgr{InSMgr}
+{
+    // Set Program Counter to the beginning of the loaded rom
+    PC = &MemoryBuffer[0x200];
+
+    // Load the font in Memory Buffer
+    std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
+
+    LoadROM(InROM);
+}
+
 bool Emulator::LoadROM(const std::string& InFile)
 {
     std::ifstream file(InFile, std::ios::binary);

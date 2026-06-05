@@ -14,6 +14,7 @@ class SoundManagerSFML : public SoundManager
 {
 public:
     SoundManagerSFML();
+    SoundManagerSFML(const std::string& InFile);
     virtual ~SoundManagerSFML() = default;
 
     virtual bool LoadBeepSound(const std::string& InFile);

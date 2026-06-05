@@ -1,5 +1,4 @@
 #include <iostream>
-#include <filesystem>
 #include <ctime>
 
 #include "Window/WindowSFML.h"
@@ -8,31 +7,49 @@
 
 #include "Emulator.h"
 
+#include <toml++/toml.hpp>
+
 int main()
 {
     srand( (unsigned)time(NULL) );
 
-    // Get dimensions
+    std::string FileROM{}, BeepSound{};
+    uint32_t InstructionsPerSecond{ 700 }, PixelSize{ 10 };
+    WindowConfiguration WindowConfig{};
+
+    try {
+        auto config = toml::parse_file("../config.toml");
+
+        // Emulator Config
+        FileROM = config["Emulator"]["FileROM"].value_or("");
+        BeepSound = config["Emulator"]["BeepSound"].value_or("");
+        InstructionsPerSecond = config["Emulator"]["InstructionsPerSecond"].value_or(InstructionsPerSecond);
+
+        // Window Config
+        WindowConfig.PixelSize = config["Window"]["PixelSize"].value_or(PixelSize);
+        WindowConfig.OffColor.r = config["Window"]["OffColor"][0].value_or(0);
+        WindowConfig.OffColor.g = config["Window"]["OffColor"][1].value_or(0);
+        WindowConfig.OffColor.b = config["Window"]["OffColor"][2].value_or(0);
+        WindowConfig.OnColor.r = config["Window"]["OnColor"][0].value_or(0);
+        WindowConfig.OnColor.g = config["Window"]["OnColor"][1].value_or(0);
+        WindowConfig.OnColor.b = config["Window"]["OnColor"][2].value_or(0);
+    }
+    catch (const toml::parse_error& err) {
+        std::cerr << "Failed to load TOML config file: " << err.description() << "\n";
+        return 1;
+    }
+
+    // Get dimensions from emulator type
     constexpr uint32_t width = 64u;
     constexpr uint32_t height = 32u;
-    uint32_t pixelSize = 10u;
 
-    auto Window = std::make_unique<WindowSFML>(width * pixelSize, height * pixelSize);
+    auto Window = std::make_unique<WindowSFML>(width, height, WindowConfig);
 
-    std::cout << "Current path is " << std::filesystem::current_path() << '\n';
+    auto soundManager = std::make_unique<SoundManagerSFML>(BeepSound);
 
-    std::string romFile("../resources/default.ch8");
+    Emulator emulator(Window->GetInputManager(), soundManager.get(), FileROM);
 
-    auto soundManager = std::make_unique<SoundManagerSFML>();
-    soundManager->LoadBeepSound("../resources/sounds/beep.wav");
-
-    // TODO: Add default constructor to directly load ROM
-    Emulator emulator(Window->GetInputManager(), soundManager.get());
-    emulator.LoadROM(romFile);
-
-    // TODO: Add to config
-    int instructionsPerSecond{700};
-    int instructionsPerFrame = instructionsPerSecond / 60;
+    int instructionsPerFrame = InstructionsPerSecond / 60;
 
     // COSMAC VIP Quirk
     bool vBlankQuirkActive = true;

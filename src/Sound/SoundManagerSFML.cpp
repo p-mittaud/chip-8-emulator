@@ -8,6 +8,11 @@ SoundManagerSFML::SoundManagerSFML()
 
 }
 
+SoundManagerSFML::SoundManagerSFML(const std::string& InFile)
+{
+    LoadBeepSound(InFile);
+}
+
 bool SoundManagerSFML::LoadBeepSound(const std::string& InFile)
 {
     BeepSoundBuffer = std::make_shared<sf::SoundBuffer>();

@@ -2,8 +2,22 @@
 #define __WINDOW_H__
 
 #include <memory>
+#include <cstdint>
 
 class InputManager;
+
+struct Color
+{
+    uint8_t r, g, b;
+};
+
+struct WindowConfiguration
+{
+    Color OffColor{ 0, 0, 0 };
+    Color OnColor{ 255, 255, 255 };
+
+    uint32_t PixelSize{ 10u };
+};
 
 class Window
 {
@@ -24,6 +38,8 @@ public:
 
 protected:
     std::unique_ptr<InputManager> InputManager;
+
+    WindowConfiguration WindowConfig;
 };
 
 #endif // __WINDOW_H__

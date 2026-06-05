@@ -1,0 +1,10 @@
+[Emulator]
+Type = 1
+FileROM = "../resources/default.ch8"
+BeepSound = "../resources/sounds/beep.wav"
+InstructionsPerSecond = 700
+
+[Window]
+PixelSize = 10
+OffColor = [0, 0, 0]
+OnColor = [255, 255, 255]

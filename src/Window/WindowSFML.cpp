@@ -3,9 +3,11 @@
 #include <SFML/Graphics.hpp>
 #include "Input/InputManagerSFML.h"
 
-WindowSFML::WindowSFML(uint32_t InWidth, uint32_t InHeight)
+WindowSFML::WindowSFML(uint32_t InWidth, uint32_t InHeight, const WindowConfiguration& InConfig)
 {
-    Window = std::make_unique<sf::RenderWindow>(sf::VideoMode({InWidth, InHeight}), "CHIP-8 Emulator");
+    WindowConfig = InConfig;
+
+    Window = std::make_unique<sf::RenderWindow>(sf::VideoMode({InWidth * WindowConfig.PixelSize, InHeight * WindowConfig.PixelSize}), "CHIP-8 Emulator");
 
     InputManager = std::make_unique<InputManagerSFML>();
     InputMgrSFML = dynamic_cast<InputManagerSFML*>(InputManager.get());
@@ -66,27 +68,25 @@ void WindowSFML::UpdateTimeSinceLastFrame()
 
 void WindowSFML::DrawDisplay(const bool* InDisplay, const int InWidth, const int InHeight)
 {
-    // TODO: Add in config
-    uint32_t pixelSize = 10u;
-
     if (!Window)
     {
         return;
     }
 
-    // Window::Clear
-    Window->clear(sf::Color::Black);
+    sf::Color OffColor(WindowConfig.OffColor.r, WindowConfig.OffColor.g, WindowConfig.OffColor.b);
+    sf::Color OnColor(WindowConfig.OnColor.r, WindowConfig.OnColor.g, WindowConfig.OnColor.b);
+    
+    Window->clear(OffColor);
 
-    // Window::Render
-    sf::RectangleShape rectangle({(float)pixelSize, (float)pixelSize});
-    rectangle.setFillColor(sf::Color::White);
+    sf::RectangleShape rectangle({(float)WindowConfig.PixelSize, (float)WindowConfig.PixelSize});
+    rectangle.setFillColor(OnColor);
 
     int PixelNumber{ InWidth * InHeight };
     for (int i = 0; i < PixelNumber; i++)
     {
         if (InDisplay[i])
         {
-            rectangle.setPosition({(float)(i % InWidth * pixelSize), (float)(i / InWidth * pixelSize)});
+            rectangle.setPosition({(float)(i % InWidth * WindowConfig.PixelSize), (float)(i / InWidth * WindowConfig.PixelSize)});
             Window->draw(rectangle);
         }
     }

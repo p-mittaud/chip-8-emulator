@@ -19,7 +19,7 @@ class InputManagerSFML;
 class WindowSFML : public Window
 {
 public:
-    WindowSFML(uint32_t InWidth, uint32_t InHeight);
+    WindowSFML(uint32_t InWidth, uint32_t InHeight, const WindowConfiguration& InConfig);
     virtual ~WindowSFML();
 
     virtual bool IsOpen() const override;

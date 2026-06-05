@@ -14,6 +14,7 @@ class Emulator
 {
 public:
     Emulator(InputManager* InInputManager, SoundManager* InSoundManager);
+    Emulator(InputManager* InInputManager, SoundManager* InSoundManager, const std::string& InROM);
     virtual ~Emulator() = default;
 
     bool LoadROM(const std::string& InFile);
