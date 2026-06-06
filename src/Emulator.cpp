@@ -125,6 +125,44 @@ void Emulator::ProcessInstruction()
                 bInLowRes = true;
                 memset(Display, false, DisplaySize);
             }
+            else if (NNN == 0x0FB)
+            {
+                // Scroll right
+                int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
+                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+                for (auto i = 0u; i < height; i++)
+                {
+                    memmove(&Display[i * width + ScrollPixelNumber], &Display[i * width], width - ScrollPixelNumber);
+                    memset(&Display[i * width], false, ScrollPixelNumber);
+                }
+            }
+            else if (NNN == 0x0FC)
+            {
+                // Scroll left
+                int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
+                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+                for (auto i = 0u; i < height; i++)
+                {
+                    memmove(&Display[i * width], &Display[i * width + ScrollPixelNumber], width - ScrollPixelNumber);
+                    memset(&Display[(i + 1) * width - ScrollPixelNumber], false, ScrollPixelNumber);
+                }
+            }
+            else if (X == 0x0 && Y == 0xC)
+            {
+                if (Type == 2 && bInLowRes)
+                {
+                    N /= 2;
+                }
+
+                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+
+                memmove(&Display[N * width], Display, sizeof(Display) - N * width);
+                memset(Display, false, N * width);
+            }
             else
             {
                 std::cerr << "Opcode " << std::hex << (int)Opcode << NNN << " not handled!" << std::endl;
