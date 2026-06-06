@@ -70,7 +70,7 @@ int main()
             bool vBlankWait = false;
             for (int i = 0; i < instructionsPerFrame; i++)
             {
-                if (vBlankQuirkActive && vBlankWait)
+                if ((EmulatorType == 1 || EmulatorType == 2) && emulator.IsInLowRes() && vBlankWait)
                 {
                     break;
                 }

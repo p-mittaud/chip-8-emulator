@@ -108,15 +108,26 @@ void Emulator::ProcessInstruction()
         case 0x0:
             if (NNN == 0xE0)
             {
-                for (int i = 0; i < 64*32; i++)
-                {
-                    Display[i] = false;
-                }
+                memset(Display, false, DisplaySize);
             }
             else if (NNN == 0x0EE)
             {
                 PC = Stack.top();
                 Stack.pop();
+            }
+            else if (NNN == 0x0FF)
+            {
+                bInLowRes = false;
+                memset(Display, false, DisplaySize);
+            }
+            else if (NNN == 0x0FE)
+            {
+                bInLowRes = true;
+                memset(Display, false, DisplaySize);
+            }
+            else
+            {
+                std::cerr << "Opcode " << std::hex << (int)Opcode << NNN << " not handled!" << std::endl;
             }
             break;
 
@@ -227,13 +238,16 @@ void Emulator::ProcessInstruction()
             break;
         case 0xD:
         {
-            int xCoord = Register[X] % 64;
-            int yCoord = Register[Y] % 32;
+            int width = bInLowRes ? WidthLowRes : WidthHighRes;
+            int height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+            int xCoord = Register[X] % width;
+            int yCoord = Register[Y] % height;
             Register[0xF] = 0;
 
             for (int i = 0; i < N; i++)
             {
-                if (yCoord + i >= 32)
+                if (yCoord + i >= height)
                 {
                     break;
                 }
@@ -243,16 +257,16 @@ void Emulator::ProcessInstruction()
 
                 for (int pix = 0; pix < 8; pix++)
                 {
-                    if (xCoord + pix >= 64)
+                    if (xCoord + pix >= width)
                         break;
 
                     if (bitset.test(7 - pix))
                     {
-                        if (Display[(yCoord + i) * 64 + xCoord + pix])
+                        if (Display[(yCoord + i) * width + xCoord + pix])
                         {
                             Register[0xF] = 1;
                         }
-                        Display[(yCoord + i) * 64 + xCoord + pix] = !Display[(yCoord + i) * 64 + xCoord + pix];
+                        Display[(yCoord + i) * width + xCoord + pix] = !Display[(yCoord + i) * width + xCoord + pix];
                     }
                 }
             }

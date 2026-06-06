@@ -13,10 +13,16 @@ class InputManager;
 struct EmulatorDisplay
 {
     const bool* display{};
-    int width{};
-    int height{};
+    uint32_t width{};
+    uint32_t height{};
     float pixelSizeMultiplier{};
 };
+
+constexpr uint32_t DisplaySize = 128 * 64;
+constexpr uint32_t WidthLowRes = 64;
+constexpr uint32_t HeightLowRes = 32;
+constexpr uint32_t WidthHighRes = 128;
+constexpr uint32_t HeightHighRes = 64;
 
 class Emulator
 {
@@ -36,13 +42,15 @@ public:
         return EmulatorDisplay
         {
             Display,
-            bInLowRes ? 64 : 128,
-            bInLowRes ? 32 : 64,
+            bInLowRes ? WidthLowRes : WidthHighRes,
+            bInLowRes ? HeightLowRes : HeightHighRes,
             bInLowRes ? 1.0f : 0.5f
         };
     }
 
     unsigned char GetNextOpcode() const { return (unsigned char)((unsigned char)*PC >> 4); }
+
+    bool IsInLowRes() const { return bInLowRes; }
 
     void PrintRegister() const;
     void PrintMemory() const;
@@ -61,7 +69,7 @@ private:
     unsigned char* PC{nullptr};  // The program counter
     unsigned char* I{nullptr};   // The Index Register
 
-    bool Display[128 * 64]{false}; // Array of pixels
+    bool Display[DisplaySize]{false}; // Array of pixels
 
     bool UpdateVXBeforeShift = true;
     bool UseCosmacJump = true;

@@ -85,8 +85,8 @@ void WindowSFML::DrawDisplay(EmulatorDisplay InDisplay)
     sf::RectangleShape rectangle({(float)PixelSize, (float)PixelSize});
     rectangle.setFillColor(OnColor);
 
-    int PixelNumber{ InDisplay.width * InDisplay.height };
-    for (int i = 0; i < PixelNumber; i++)
+    uint32_t PixelNumber{ InDisplay.width * InDisplay.height };
+    for (uint32_t i = 0; i < PixelNumber; i++)
     {
         if (InDisplay.display[i])
         {
