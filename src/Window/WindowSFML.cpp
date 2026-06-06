@@ -3,6 +3,8 @@
 #include <SFML/Graphics.hpp>
 #include "Input/InputManagerSFML.h"
 
+#include "Emulator.h"
+
 WindowSFML::WindowSFML(uint32_t InWidth, uint32_t InHeight, const WindowConfiguration& InConfig)
 {
     WindowConfig = InConfig;
@@ -66,7 +68,7 @@ void WindowSFML::UpdateTimeSinceLastFrame()
     *TimeSinceLastTimerUpdate -= *TimePerFrame60Hz;
 }
 
-void WindowSFML::DrawDisplay(const bool* InDisplay, const int InWidth, const int InHeight)
+void WindowSFML::DrawDisplay(EmulatorDisplay InDisplay)
 {
     if (!Window)
     {
@@ -75,18 +77,20 @@ void WindowSFML::DrawDisplay(const bool* InDisplay, const int InWidth, const int
 
     sf::Color OffColor(WindowConfig.OffColor.r, WindowConfig.OffColor.g, WindowConfig.OffColor.b);
     sf::Color OnColor(WindowConfig.OnColor.r, WindowConfig.OnColor.g, WindowConfig.OnColor.b);
+
+    uint32_t PixelSize = WindowConfig.PixelSize * InDisplay.pixelSizeMultiplier;
     
     Window->clear(OffColor);
 
-    sf::RectangleShape rectangle({(float)WindowConfig.PixelSize, (float)WindowConfig.PixelSize});
+    sf::RectangleShape rectangle({(float)PixelSize, (float)PixelSize});
     rectangle.setFillColor(OnColor);
 
-    int PixelNumber{ InWidth * InHeight };
+    int PixelNumber{ InDisplay.width * InDisplay.height };
     for (int i = 0; i < PixelNumber; i++)
     {
-        if (InDisplay[i])
+        if (InDisplay.display[i])
         {
-            rectangle.setPosition({(float)(i % InWidth * WindowConfig.PixelSize), (float)(i / InWidth * WindowConfig.PixelSize)});
+            rectangle.setPosition({(float)(i % InDisplay.width * PixelSize), (float)(i / InDisplay.width * PixelSize)});
             Window->draw(rectangle);
         }
     }

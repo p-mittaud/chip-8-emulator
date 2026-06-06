@@ -29,7 +29,7 @@ public:
     virtual bool ShouldRunFrame() const override;
     virtual void UpdateTimeSinceLastFrame() override;
 
-    virtual void DrawDisplay(const bool* InDisplay, const int InWidth, const int InHeight) override;
+    virtual void DrawDisplay(EmulatorDisplay InDisplay) override;
 
 private:
     std::unique_ptr<sf::RenderWindow> Window;

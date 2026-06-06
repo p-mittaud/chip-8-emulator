@@ -30,7 +30,8 @@ unsigned char EmulatorFont[80]
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr) : InputMgr{InInputMgr}, SoundMgr{InSMgr}
+Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
+    : InputMgr{InInputMgr}, SoundMgr{InSMgr}, Type{InType}
 {
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
@@ -39,7 +40,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr) : InputMgr{In
     std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
 }
 
-Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM) : InputMgr{InInputMgr}, SoundMgr{InSMgr}
+Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM, int InType)
+    : InputMgr{InInputMgr}, SoundMgr{InSMgr}, Type{InType}
 {
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
@@ -154,18 +156,18 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x1:
                 Register[X] |= Register[Y];
-                // TODO: Add configuration for SUPER-CHIP and XO-CHIP
-                Register[0xF] = 0;
+                if (Type == 1)
+                    Register[0xF] = 0;
                     break;
                 case 0x2:
                 Register[X] &= Register[Y];
-                // TODO: Add configuration for SUPER-CHIP and XO-CHIP
-                Register[0xF] = 0;
+                if (Type == 1)
+                    Register[0xF] = 0;
                     break;
                 case 0x3:
                 Register[X] ^= Register[Y];
-                // TODO: Add configuration for SUPER-CHIP and XO-CHIP
-                Register[0xF] = 0;
+                if (Type == 1)
+                    Register[0xF] = 0;
                     break;
                 case 0x4:
                 {
@@ -183,7 +185,7 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x6:
                 {
-                    if (UpdateVXBeforeShift) // COSMAC VIP Quirk
+                    if (Type == 1) // CHIP-8 COSMAC VIP Quirk
                         Register[X] = Register[Y];
                     unsigned char flag = Register[X] & 0x1u;
                     Register[X] = Register[X] >> 1;
@@ -199,7 +201,7 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0xE:
                 {
-                    if (UpdateVXBeforeShift) // COSMAC VIP Quirk
+                    if (Type == 1) // CHIP-8 COSMAC VIP Quirk
                         Register[X] = Register[Y];
                     unsigned char flag = Register[X] >> 7u;
                     Register[X] = Register[X] << 1;
@@ -218,7 +220,7 @@ void Emulator::ProcessInstruction()
             I = &MemoryBuffer[NNN];
             break;
         case 0xB:
-            PC = &MemoryBuffer[NNN + Register[UseCosmacJump ? 0 : X]];
+            PC = &MemoryBuffer[NNN + Register[Type == 1 ? 0 : X]];
             return;
         case 0xC:
             Register[X] = NN & (unsigned char)(rand() % 0x100);
@@ -308,16 +310,16 @@ void Emulator::ProcessInstruction()
                     {
                         *(I + i) = Register[i];
                     }
-                    // TODO: Add Increment in configuration
-                    I += X + 1;
+                    if (Type == 1)
+                        I += X + 1;
                     break;
                 case 0x65:
                     for (unsigned char i = 0; i <= X; i++)
                     {
                         Register[i] = *(I + i);
                     }
-                    // TODO: Add Increment in configuration
-                    I += X + 1;
+                    if (Type == 1)
+                        I += X + 1;
                     break;
                 case 0x0A:
                     if (InputMgr && InputMgr->IsAnyKeyReleased())

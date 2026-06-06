@@ -16,11 +16,13 @@ int main()
     std::string FileROM{}, BeepSound{};
     uint32_t InstructionsPerSecond{ 700 }, PixelSize{ 10 };
     WindowConfiguration WindowConfig{};
+    int EmulatorType{ 1 };
 
     try {
         auto config = toml::parse_file("../config.toml");
 
         // Emulator Config
+        EmulatorType = config["Emulator"]["Type"].value_or(EmulatorType);
         FileROM = config["Emulator"]["FileROM"].value_or("");
         BeepSound = config["Emulator"]["BeepSound"].value_or("");
         InstructionsPerSecond = config["Emulator"]["InstructionsPerSecond"].value_or(InstructionsPerSecond);
@@ -47,7 +49,7 @@ int main()
 
     auto soundManager = std::make_unique<SoundManagerSFML>(BeepSound);
 
-    Emulator emulator(Window->GetInputManager(), soundManager.get(), FileROM);
+    Emulator emulator(Window->GetInputManager(), soundManager.get(), FileROM, EmulatorType);
 
     int instructionsPerFrame = InstructionsPerSecond / 60;
 
@@ -84,7 +86,7 @@ int main()
             }
         }
         
-        Window->DrawDisplay(emulator.GetDisplay(), width, height);
+        Window->DrawDisplay(emulator.GetDisplay());
     }
 
     return 0;

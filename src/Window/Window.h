@@ -6,6 +6,8 @@
 
 class InputManager;
 
+struct EmulatorDisplay;
+
 struct Color
 {
     uint8_t r, g, b;
@@ -32,7 +34,7 @@ public:
     virtual bool ShouldRunFrame() const = 0;
     virtual void UpdateTimeSinceLastFrame() = 0;
 
-    virtual void DrawDisplay(const bool* InDisplay, const int InWidth, const int InHeight) = 0;
+    virtual void DrawDisplay(EmulatorDisplay InDisplay) = 0;
 
     InputManager* GetInputManager() const { return InputManager.get(); }
 
