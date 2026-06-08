@@ -10,7 +10,7 @@
 #include "Input/InputManager.h"
 #include "Sound/SoundManager.h"
 
-unsigned char EmulatorFont[80]
+unsigned char CHIP8Font[80]
 {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -30,6 +30,25 @@ unsigned char EmulatorFont[80]
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
+const uint8_t SuperChipFont[160] = {
+    0x3C, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, // 0
+    0x18, 0x38, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3C, // 1
+    0x3E, 0x66, 0x06, 0x06, 0x0C, 0x18, 0x30, 0x60, 0x7E, 0x7E, // 2
+    0x3E, 0x66, 0x06, 0x06, 0x3E, 0x06, 0x06, 0x06, 0x66, 0x3E, // 3
+    0x06, 0x0E, 0x1E, 0x36, 0x66, 0x66, 0x7F, 0x06, 0x06, 0x06, // 4
+    0x7E, 0x60, 0x60, 0x60, 0x7C, 0x06, 0x06, 0x06, 0x66, 0x3E, // 5
+    0x3C, 0x66, 0x60, 0x60, 0x7C, 0x66, 0x66, 0x66, 0x66, 0x3C, // 6
+    0x7E, 0x66, 0x06, 0x06, 0x0C, 0x18, 0x30, 0x30, 0x30, 0x30, // 7
+    0x3C, 0x66, 0x66, 0x66, 0x3C, 0x66, 0x66, 0x66, 0x66, 0x3C, // 8
+    0x3C, 0x66, 0x66, 0x66, 0x3E, 0x06, 0x06, 0x06, 0x66, 0x3C, // 9
+    0x7E, 0x66, 0x66, 0x66, 0x7E, 0x66, 0x66, 0x66, 0x66, 0x66, // A
+    0x7C, 0x66, 0x66, 0x66, 0x7C, 0x66, 0x66, 0x66, 0x66, 0x7C, // B
+    0x3C, 0x66, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x66, 0x3C, // C
+    0x78, 0x6C, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x6C, 0x78, // D
+    0x7F, 0x60, 0x60, 0x60, 0x7C, 0x60, 0x60, 0x60, 0x60, 0x7F, // E
+    0x7F, 0x60, 0x60, 0x60, 0x7C, 0x60, 0x60, 0x60, 0x60, 0x60  // F
+};
+
 Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
     : InputMgr{InInputMgr}, SoundMgr{InSMgr}, Type{InType}
 {
@@ -37,7 +56,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
     PC = &MemoryBuffer[0x200];
 
     // Load the font in Memory Buffer
-    std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
+    std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
+    std::memcpy(&MemoryBuffer[HiResFontOffset], SuperChipFont, sizeof(SuperChipFont));
 }
 
 Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM, int InType)
@@ -47,7 +67,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::st
     PC = &MemoryBuffer[0x200];
 
     // Load the font in Memory Buffer
-    std::memcpy(&MemoryBuffer[FontOffset], EmulatorFont, sizeof(EmulatorFont));
+    std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
+    std::memcpy(&MemoryBuffer[HiResFontOffset], SuperChipFont, sizeof(SuperChipFont));
 
     LoadROM(InROM);
 }
@@ -283,28 +304,82 @@ void Emulator::ProcessInstruction()
             int yCoord = Register[Y] % height;
             Register[0xF] = 0;
 
-            for (int i = 0; i < N; i++)
+            if (N != 0 || (N == 0 && bInLowRes))
             {
-                if (yCoord + i >= height)
+                if (N == 0)
                 {
-                    break;
+                    N = 16;
                 }
 
-                unsigned char sprite = *(I + i);
-                std::bitset<8> bitset(sprite);
-
-                for (int pix = 0; pix < 8; pix++)
+                for (int i = 0; i < N; i++)
                 {
-                    if (xCoord + pix >= width)
-                        break;
-
-                    if (bitset.test(7 - pix))
+                    if (yCoord + i >= height)
                     {
-                        if (Display[(yCoord + i) * width + xCoord + pix])
+                        break;
+                    }
+
+                    unsigned char sprite = *(I + i);
+                    std::bitset<8> bitset(sprite);
+
+                    for (int pix = 0; pix < 8; pix++)
+                    {
+                        if (xCoord + pix >= width)
+                            break;
+
+                        if (bitset.test(7 - pix))
                         {
-                            Register[0xF] = 1;
+                            if (Display[(yCoord + i) * width + xCoord + pix])
+                            {
+                                Register[0xF] = 1;
+                            }
+                            Display[(yCoord + i) * width + xCoord + pix] = !Display[(yCoord + i) * width + xCoord + pix];
                         }
-                        Display[(yCoord + i) * width + xCoord + pix] = !Display[(yCoord + i) * width + xCoord + pix];
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (yCoord + i >= height)
+                    {
+                        if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
+                        {
+                            Register[0xF] += 16 - i;
+                        }
+
+                        break;
+                    }
+
+                    uint16_t value = ((uint16_t)(*(I + i * 2)) << 8) | *(I + i * 2 + 1);
+
+                    bool bHadCollision{ false };
+
+                    for (int pix = 0; pix < 16; pix++)
+                    {
+                        if (xCoord + pix >= width)
+                            break;
+
+                        if (value >> (15 - pix) & 1)
+                        {
+                            if (Display[(yCoord + i) * width + xCoord + pix])
+                            {
+                                if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
+                                {
+                                    bHadCollision = true;
+                                }
+                                else
+                                {
+                                    Register[0xF] = 1;
+                                }
+                            }
+                            Display[(yCoord + i) * width + xCoord + pix] = !Display[(yCoord + i) * width + xCoord + pix];
+                        }
+                    }
+
+                    if (bHadCollision)
+                    {
+                        Register[0xF] += 1;
                     }
                 }
             }
@@ -350,7 +425,10 @@ void Emulator::ProcessInstruction()
                     I += Register[X];
                     break;
                 case 0x29:
-                    I = &MemoryBuffer[FontOffset + Register[X]];
+                    I = &MemoryBuffer[FontOffset + Register[X] * 5];
+                    break;
+                case 0x30:
+                    I = &MemoryBuffer[HiResFontOffset + Register[X] * 10];
                     break;
                 case 0x33:
                     *(I + 2) = (char)(Register[X] % 10);

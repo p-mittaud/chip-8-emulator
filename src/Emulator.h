@@ -6,6 +6,7 @@
 #include <cstdint>
 
 constexpr uint16_t FontOffset = 0x50u;
+constexpr uint16_t HiResFontOffset = 0xA0u;
 
 class SoundManager;
 class InputManager;
