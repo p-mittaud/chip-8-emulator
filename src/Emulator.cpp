@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include <cstring>
+#include <filesystem>
 
 #include "Input/InputManager.h"
 #include "Sound/SoundManager.h"
@@ -75,6 +76,12 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::st
 
 bool Emulator::LoadROM(const std::string& InFile)
 {
+    auto lastBackslashPos = InFile.find_last_of('\\');
+    auto lastSlashPos = InFile.find_last_of('/');
+    size_t index = lastBackslashPos == std::string::npos ? lastSlashPos : lastBackslashPos;
+    CurrentROMName = InFile.substr(index == std::string::npos ? 0 : index + 1);
+    std::cout << "Name of the current ROM : \"" << CurrentROMName << "\"" << std::endl;
+
     std::ifstream file(InFile, std::ios::binary);
 
     if (!file.is_open())
@@ -422,7 +429,11 @@ void Emulator::ProcessInstruction()
                     }
                     break;
                 case 0x1E:
-                    I += Register[X];
+                    {
+                        bool UpdateFlags = I + Register[X] >= &MemoryBuffer[4096 - 1] ? true : false;
+                        I += Register[X];
+                        Register[0xF] = UpdateFlags ? 1 : 0;
+                    }
                     break;
                 case 0x29:
                     I = &MemoryBuffer[FontOffset + Register[X] * 5];
@@ -451,6 +462,29 @@ void Emulator::ProcessInstruction()
                     if (Type == 1)
                         I += X + 1;
                     break;
+
+                case 0x75:
+                    {
+                        // Create saves folder if it doesn't exists
+                        std::filesystem::path savePath = std::filesystem::path(GetSaveFileName()).parent_path();
+                        if (!savePath.empty())
+                        {
+                            std::filesystem::create_directories(savePath);
+                        }
+
+                        std::ofstream file(GetSaveFileName(), std::ios::out | std::ios::binary);
+                        file.write(reinterpret_cast<char*>(Register), X + 1);
+                        file.close();
+                    }
+                    break;
+                case 0x85:
+                    {
+                        std::ifstream file(GetSaveFileName(), std::ios::in | std::ios::binary);
+                        file.read(reinterpret_cast<char*>(Register), X + 1);
+                        file.close();
+                    }
+                    break;
+
                 case 0x0A:
                     if (InputMgr && InputMgr->IsAnyKeyReleased())
                     {
@@ -498,6 +532,11 @@ void Emulator::PrintMemory() const
         if ((i + 1) % 8 == 0) std::cout << std::endl;
     }
     std::cout << std::endl;
+}
+
+std::string Emulator::GetSaveFileName() const
+{
+    return SaveDirectory + CurrentROMName + ".sav";
 }
 
 void Emulator::IncrementProgramCounter()

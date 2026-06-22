@@ -56,6 +56,8 @@ public:
     void PrintRegister() const;
     void PrintMemory() const;
 
+    std::string GetSaveFileName() const;
+
 private:
     void IncrementProgramCounter();
 
@@ -81,6 +83,10 @@ private:
     SoundManager* SoundMgr{};
 
     int Type{};
+
+    std::string CurrentROMName{};
+
+    std::string SaveDirectory{ "../saves/" };
 };
 
 #endif // __EMULATOR_H__
