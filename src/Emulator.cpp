@@ -53,6 +53,8 @@ const uint8_t SuperChipFont[160] = {
 Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
     : InputMgr{InInputMgr}, SoundMgr{InSMgr}, Type{InType}
 {
+    MemoryBufferSize = Type == 4 ? 0x10000 : 0x1000;
+
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
 
@@ -64,6 +66,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
 Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM, int InType)
     : InputMgr{InInputMgr}, SoundMgr{InSMgr}, Type{InType}
 {
+    MemoryBufferSize = Type == 4 ? 0x10000 : 0x1000;
+
     // Set Program Counter to the beginning of the loaded rom
     PC = &MemoryBuffer[0x200];
 
@@ -90,7 +94,7 @@ bool Emulator::LoadROM(const std::string& InFile)
         return false;
     }
 
-    file.read(reinterpret_cast<char*>(&MemoryBuffer[0x200]), 4096 - 0x200);
+    file.read(reinterpret_cast<char*>(&MemoryBuffer[0x200]), MemoryBufferSize - 0x200);
     file.close();
 
     return true;
@@ -209,15 +213,76 @@ void Emulator::ProcessInstruction()
             return;
         case 0x3:
             if (Register[X] == NN)
+            {
+                if (Type == 4) // Skip 4 bytes opcodes
+                {
+                    if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                    {
+                        IncrementProgramCounter();
+                    }
+                }
                 IncrementProgramCounter();
+            }
             break;
         case 0x4:
             if (Register[X] != NN)
+            {
+                if (Type == 4) // Skip 4 bytes opcodes
+                {
+                    if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                    {
+                        IncrementProgramCounter();
+                    }
+                }
                 IncrementProgramCounter();
+            }
             break;
         case 0x5:
-            if (Register[X] == Register[Y])
-                IncrementProgramCounter();
+            switch (N)
+            {
+                case 0:
+                {
+                if (Register[X] == Register[Y])
+                {
+                    if (Type == 4) // Skip 4 bytes opcodes
+                    {
+                        if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                        {
+                            IncrementProgramCounter();
+                        }
+                    }
+                    IncrementProgramCounter();
+                }
+                break;
+                }
+                case 2:
+                    if (Type != 4)
+                        break;
+                    // Write registers X to Y to I. With X > Y or X < Y
+                    {
+                        int increment = 0;
+                        for (int v = X; X <= Y ? v < Y : v > Y; X <= Y ? v++ : v--)
+                        {
+                            MemoryBuffer[I + increment++] = Register[v];
+                        }
+                    }
+                    break;
+                case 3:
+                    if (Type != 4)
+                        break;
+                    // Load Register from I to X to Y. With X > Y or X < Y
+                    {
+                        int increment = 0;
+                        for (int v = X; X <= Y ? v < Y : v > Y; X <= Y ? v++ : v--)
+                        {
+                            Register[v] = MemoryBuffer[I + increment++];
+                        }
+                    }
+                    break;
+                default:
+                    std::cerr << "Operation 0x5XY" << N << " is not handled!" << std::endl;
+                    break;
+            }
             break;
         case 0x6:
             Register[X] = NN;
@@ -291,10 +356,19 @@ void Emulator::ProcessInstruction()
             break;
         case 0x9:
             if (Register[X] != Register[Y])
+            {
+                if (Type == 4) // Skip 4 bytes opcodes
+                {
+                    if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                    {
+                        IncrementProgramCounter();
+                    }
+                }
                 IncrementProgramCounter();
+            }
             break;
         case 0xA:
-            I = &MemoryBuffer[NNN];
+            I = NNN;
             break;
         case 0xB:
             PC = &MemoryBuffer[NNN + Register[Type == 1 ? 0 : X]];
@@ -325,7 +399,7 @@ void Emulator::ProcessInstruction()
                         break;
                     }
 
-                    unsigned char sprite = *(I + i);
+                    unsigned char sprite = MemoryBuffer[I + i];
                     std::bitset<8> bitset(sprite);
 
                     for (int pix = 0; pix < 8; pix++)
@@ -358,7 +432,7 @@ void Emulator::ProcessInstruction()
                         break;
                     }
 
-                    uint16_t value = ((uint16_t)(*(I + i * 2)) << 8) | *(I + i * 2 + 1);
+                    uint16_t value = ((uint16_t)(MemoryBuffer[I + i * 2]) << 8) | MemoryBuffer[I + i * 2 + 1];
 
                     bool bHadCollision{ false };
 
@@ -397,6 +471,13 @@ void Emulator::ProcessInstruction()
             {
                 if (InputMgr && InputMgr->IsKeyPressed(Register[X]))
                 {
+                    if (Type == 4) // Skip 4 bytes opcodes
+                    {
+                        if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                        {
+                            IncrementProgramCounter();
+                        }
+                    }
                     IncrementProgramCounter();
                 }
             }
@@ -404,6 +485,13 @@ void Emulator::ProcessInstruction()
             {
                 if (InputMgr && !InputMgr->IsKeyPressed(Register[X]))
                 {
+                    if (Type == 4) // Skip 4 bytes opcodes
+                    {
+                        if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                        {
+                            IncrementProgramCounter();
+                        }
+                    }
                     IncrementProgramCounter();
                 }
             }
@@ -413,8 +501,19 @@ void Emulator::ProcessInstruction()
             }
             break;
         case 0xF:
+            if (Type == 4 && NNN == 0)
+            {
+                unsigned char b1 = (unsigned char)*(PC + 2);
+                unsigned char b2 = (unsigned char)*(PC + 3);
+                I = (uint16_t(b1) << 8) | b2;
+                IncrementProgramCounter();
+                break;
+            }
             switch (NN)
             {
+                case 0x01:
+                    SelectedDrawingPlane = X;
+                    break;
                 case 0x07:
                     Register[X] = DelayTimer;
                     break;
@@ -430,26 +529,26 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x1E:
                     {
-                        bool UpdateFlags = I + Register[X] >= &MemoryBuffer[4096 - 1] ? true : false;
+                        bool UpdateFlags = I + Register[X] >= MemoryBufferSize ? true : false;
                         I += Register[X];
                         Register[0xF] = UpdateFlags ? 1 : 0;
                     }
                     break;
                 case 0x29:
-                    I = &MemoryBuffer[FontOffset + Register[X] * 5];
+                    I = FontOffset + Register[X] * 5;
                     break;
                 case 0x30:
-                    I = &MemoryBuffer[HiResFontOffset + Register[X] * 10];
+                    I = HiResFontOffset + Register[X] * 10;
                     break;
                 case 0x33:
-                    *(I + 2) = (char)(Register[X] % 10);
-                    *(I + 1) = (char)((Register[X] / 10) % 10);
-                    *(I + 0) = (char)((Register[X] / 100) % 10);
+                    MemoryBuffer[I + 2] = (char)(Register[X] % 10);
+                    MemoryBuffer[I + 1] = (char)((Register[X] / 10) % 10);
+                    MemoryBuffer[I + 0] = (char)((Register[X] / 100) % 10);
                     break;
                 case 0x55:
                     for (unsigned char i = 0; i <= X; i++)
                     {
-                        *(I + i) = Register[i];
+                        MemoryBuffer[I + i] = Register[i];
                     }
                     if (Type == 1)
                         I += X + 1;
@@ -457,7 +556,7 @@ void Emulator::ProcessInstruction()
                 case 0x65:
                     for (unsigned char i = 0; i <= X; i++)
                     {
-                        Register[i] = *(I + i);
+                        Register[i] = MemoryBuffer[I + i];
                     }
                     if (Type == 1)
                         I += X + 1;
@@ -521,7 +620,7 @@ void Emulator::PrintRegister() const
 void Emulator::PrintMemory() const
 {
     std::cout << "=== Printing Memory ===" << std::hex << std::endl;
-    for (int i = 0; i < 4096; i++)
+    for (int i = 0; i < MemoryBufferSize; i++)
     {
         if (i == 0x200)
         {

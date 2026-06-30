@@ -13,7 +13,7 @@ class InputManager;
 
 struct EmulatorDisplay
 {
-    const bool* display{};
+    const unsigned char* display{};
     uint32_t width{};
     uint32_t height{};
     float pixelSizeMultiplier{};
@@ -61,7 +61,9 @@ public:
 private:
     void IncrementProgramCounter();
 
-    unsigned char MemoryBuffer[4096]{0};
+    // unsigned char MemoryBuffer[0x1000]{0};
+    unsigned char MemoryBuffer[0x10000]{0};
+    uint16_t MemoryBufferSize{0};
     unsigned char Register[16]{0};
 
     unsigned char DelayTimer{0};
@@ -70,9 +72,11 @@ private:
     std::stack<unsigned char*> Stack{};
 
     unsigned char* PC{nullptr};  // The program counter
-    unsigned char* I{nullptr};   // The Index Register
+    // unsigned char* I{nullptr};   // The Index Register
+    uint16_t I{}; // The Index Register
 
-    bool Display[DisplaySize]{false}; // Array of pixels
+    // bool Display[DisplaySize]{false}; // Array of pixels
+    unsigned char Display[DisplaySize]{0}; // Array of pixels
 
     bool UpdateVXBeforeShift = true;
     bool UseCosmacJump = true;
@@ -87,6 +91,8 @@ private:
     std::string CurrentROMName{};
 
     std::string SaveDirectory{ "../saves/" };
+
+    int SelectedDrawingPlane{1};
 };
 
 #endif // __EMULATOR_H__
