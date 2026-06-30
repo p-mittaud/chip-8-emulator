@@ -328,7 +328,7 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x6:
                 {
-                    if (Type == 1) // CHIP-8 COSMAC VIP Quirk
+                    if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
                         Register[X] = Register[Y];
                     unsigned char flag = Register[X] & 0x1u;
                     Register[X] = Register[X] >> 1;
@@ -344,7 +344,7 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0xE:
                 {
-                    if (Type == 1) // CHIP-8 COSMAC VIP Quirk
+                    if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
                         Register[X] = Register[Y];
                     unsigned char flag = Register[X] >> 7u;
                     Register[X] = Register[X] << 1;
@@ -372,7 +372,7 @@ void Emulator::ProcessInstruction()
             I = NNN;
             break;
         case 0xB:
-            PC = &MemoryBuffer[NNN + Register[Type == 1 ? 0 : X]];
+            PC = &MemoryBuffer[NNN + Register[Type == 1 || Type == 4 ? 0 : X]];
             return;
         case 0xC:
             Register[X] = NN & (unsigned char)(rand() % 0x100);
@@ -522,7 +522,7 @@ void Emulator::ProcessInstruction()
                     {
                         MemoryBuffer[I + i] = Register[i];
                     }
-                    if (Type == 1)
+                    if (Type == 1 || Type == 4)
                         I += X + 1;
                     break;
                 case 0x65:
@@ -530,7 +530,7 @@ void Emulator::ProcessInstruction()
                     {
                         Register[i] = MemoryBuffer[I + i];
                     }
-                    if (Type == 1)
+                    if (Type == 1 || Type == 4)
                         I += X + 1;
                     break;
 

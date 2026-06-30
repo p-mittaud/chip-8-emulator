@@ -67,7 +67,7 @@ private:
 
     // unsigned char MemoryBuffer[0x1000]{0};
     unsigned char MemoryBuffer[0x10000]{0};
-    uint16_t MemoryBufferSize{0};
+    uint32_t MemoryBufferSize{0};
     unsigned char Register[16]{0};
 
     unsigned char DelayTimer{0};
