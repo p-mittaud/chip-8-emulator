@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <vector>
 
+#include <algorithm>
+
 #include "Input/InputManager.h"
 #include "Sound/SoundManager.h"
 
@@ -141,7 +143,10 @@ void Emulator::ProcessInstruction()
         case 0x0:
             if (NNN == 0xE0)
             {
-                memset(Display, false, DisplaySize);
+                // Clear screen
+                std::transform(Display, Display + DisplaySize, Display,
+                    [=](unsigned char pixel) { return pixel & ~SelectedDrawingPlane; }
+                );
             }
             else if (NNN == 0x0EE)
             {
@@ -165,10 +170,25 @@ void Emulator::ProcessInstruction()
                 auto width = bInLowRes ? WidthLowRes : WidthHighRes;
                 auto height = bInLowRes ? HeightLowRes : HeightHighRes;
 
+                // Do a copy of the Display array
+                unsigned char DisplayCopy[width * height];
+                memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
+
                 for (auto i = 0u; i < height; i++)
                 {
-                    memmove(&Display[i * width + ScrollPixelNumber], &Display[i * width], width - ScrollPixelNumber);
-                    memset(&Display[i * width], false, ScrollPixelNumber);
+                    std::transform(DisplayCopy + i * width, DisplayCopy + i * width + (width - ScrollPixelNumber), Display + i * width + ScrollPixelNumber, Display + i * width + ScrollPixelNumber,
+                        [=](unsigned char srcPixel, unsigned char destPixel)
+                        {
+                            return (destPixel & ~SelectedDrawingPlane) | (srcPixel & SelectedDrawingPlane);
+                        }
+                    );
+
+                    std::transform(Display + i * width, Display + i * width + ScrollPixelNumber, Display + i * width, 
+                        [=](unsigned char pixel)
+                        {
+                            return pixel & ~SelectedDrawingPlane;
+                        }
+                    );
                 }
             }
             else if (NNN == 0x0FC)
@@ -180,11 +200,22 @@ void Emulator::ProcessInstruction()
 
                 for (auto i = 0u; i < height; i++)
                 {
-                    memmove(&Display[i * width], &Display[i * width + ScrollPixelNumber], width - ScrollPixelNumber);
-                    memset(&Display[(i + 1) * width - ScrollPixelNumber], false, ScrollPixelNumber);
+                    std::transform(Display + i * width, Display + (i + 1) * width - ScrollPixelNumber, Display + i * width + ScrollPixelNumber, Display + i * width,
+                        [=](unsigned char srcPixel, unsigned char destPixel)
+                        {
+                            return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
+                        }
+                    );
+                    // Clear remaining pixels
+                    std::transform(Display + (i + 1) * width - ScrollPixelNumber, Display + (i + 1) * width - 1, Display + (i + 1) * width - ScrollPixelNumber, 
+                        [=](unsigned char pixel)
+                        {
+                            return pixel & ~SelectedDrawingPlane;
+                        }
+                    );
                 }
             }
-            else if (X == 0x0 && Y == 0xC)
+            else if (X == 0x0 && Y == 0xC) // Scroll Down
             {
                 if (Type == 2 && bInLowRes)
                 {
@@ -192,9 +223,44 @@ void Emulator::ProcessInstruction()
                 }
 
                 auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
 
-                memmove(&Display[N * width], Display, sizeof(Display) - N * width);
-                memset(Display, false, N * width);
+                unsigned char DisplayCopy[width * height];
+                memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
+
+                std::transform(DisplayCopy, DisplayCopy + width * height - N * width, Display + N * width, Display + N * width,
+                    [=](unsigned char srcPixel, unsigned char destPixel)
+                    {
+                        return (srcPixel & SelectedDrawingPlane) | (destPixel & ~SelectedDrawingPlane);
+                    }
+                );
+
+                std::transform(Display, Display + N * width, Display,
+                    [=](unsigned char pixel)
+                    {
+                        return pixel & ~SelectedDrawingPlane;
+                    }
+                );
+            }
+            else if (X == 0x0 && Y == 0xD && Type == 4) // Scroll Up
+            {
+                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+                // Scrolls pixel up
+                std::transform(Display, Display + width * height - N * width, Display + N * width, Display, 
+                    [=](unsigned char srcPixel, unsigned char destPixel)
+                    {
+                        return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
+                    }
+                );
+                // Clear remaining pixels
+                std::transform(Display + width * height - N * width, Display + width * height - 1, Display + width * height - N * width, 
+                    [=](unsigned char pixel)
+                    {
+                        return pixel & ~SelectedDrawingPlane;
+                    }
+                );
             }
             else
             {
