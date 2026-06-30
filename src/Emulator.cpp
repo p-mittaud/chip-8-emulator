@@ -582,9 +582,18 @@ void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, uns
 {
     for (int i = 0; i < N; i++)
     {
-        if (yCoord + i >= height)
+        // If XO-CHIP, we wrap
+        int yCoordDesired = yCoord + i;
+        if (yCoordDesired >= height)
         {
-            break;
+            if (Type == 4)
+            {
+                yCoordDesired -= height;
+            }
+            else
+            {
+                break;
+            }
         }
 
         unsigned char sprite = MemoryBuffer[I + i + memoryOffset];
@@ -592,16 +601,28 @@ void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, uns
 
         for (int pix = 0; pix < 8; pix++)
         {
-            if (xCoord + pix >= width)
-                break;
+            int xCoordDesired = xCoord + pix;
+            if (xCoordDesired >= width)
+            {
+                if (Type == 4)
+                {
+                    xCoordDesired -= width;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            // if (xCoord + pix >= width)
+            //     break;
 
             if (bitset.test(7 - pix))
             {
-                if (Display[(yCoord + i) * width + xCoord + pix] & byteOffset)
+                if (Display[(yCoordDesired) * width + xCoordDesired] & byteOffset)
                 {
                     Register[0xF] = 1;
                 }
-                Display[(yCoord + i) * width + xCoord + pix] ^= byteOffset;
+                Display[(yCoordDesired) * width + xCoordDesired] ^= byteOffset;
             }
         }
     }
@@ -611,14 +632,23 @@ void Emulator::Draw16BitSprite(int width, int height, int xCoord, int yCoord, un
 {
     for (int i = 0; i < 16; i++)
     {
-        if (yCoord + i >= height)
+        // If XO-CHIP, we wrap
+        int yCoordDesired = yCoord + i;
+        if (yCoordDesired >= height)
         {
             if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
             {
                 Register[0xF] += 16 - i;
             }
 
-            break;
+            if (Type == 4)
+            {
+                yCoordDesired -= height;
+            }
+            else
+            {
+                break;
+            }
         }
 
         uint16_t value = ((uint16_t)(MemoryBuffer[I + memoryOffset + i * 2]) << 8) | MemoryBuffer[I + memoryOffset + i * 2 + 1];
@@ -627,12 +657,22 @@ void Emulator::Draw16BitSprite(int width, int height, int xCoord, int yCoord, un
 
         for (int pix = 0; pix < 16; pix++)
         {
-            if (xCoord + pix >= width)
-                break;
+            int xCoordDesired = xCoord + pix;
+            if (xCoordDesired >= width)
+            {
+                if (Type == 4)
+                {
+                    xCoordDesired -= width;
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             if (value >> (15 - pix) & 1)
             {
-                if (Display[(yCoord + i) * width + xCoord + pix] & byteOffset)
+                if (Display[(yCoordDesired) * width + xCoordDesired] & byteOffset)
                 {
                     if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
                     {
@@ -643,7 +683,7 @@ void Emulator::Draw16BitSprite(int width, int height, int xCoord, int yCoord, un
                         Register[0xF] = 1;
                     }
                 }
-                Display[(yCoord + i) * width + xCoord + pix] ^= byteOffset;
+                Display[(yCoordDesired) * width + xCoordDesired] ^= byteOffset;
             }
         }
 
