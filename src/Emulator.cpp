@@ -7,6 +7,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <vector>
 
 #include "Input/InputManager.h"
 #include "Sound/SoundManager.h"
@@ -392,75 +393,41 @@ void Emulator::ProcessInstruction()
                     N = 16;
                 }
 
-                for (int i = 0; i < N; i++)
+                std::vector<unsigned char> planesToDraw;
+                if (SelectedDrawingPlane & 0b01)
                 {
-                    if (yCoord + i >= height)
+                    planesToDraw.push_back(0b01);
+                }
+                if (SelectedDrawingPlane & 0b10)
+                {
+                    planesToDraw.push_back(0b10);
+                }
+
+                if (planesToDraw.size())
+                {
+                    for (auto i = 0u; i < planesToDraw.size(); i++)
                     {
-                        break;
-                    }
-
-                    unsigned char sprite = MemoryBuffer[I + i];
-                    std::bitset<8> bitset(sprite);
-
-                    for (int pix = 0; pix < 8; pix++)
-                    {
-                        if (xCoord + pix >= width)
-                            break;
-
-                        if (bitset.test(7 - pix))
-                        {
-                            if (Display[(yCoord + i) * width + xCoord + pix])
-                            {
-                                Register[0xF] = 1;
-                            }
-                            Display[(yCoord + i) * width + xCoord + pix] = !Display[(yCoord + i) * width + xCoord + pix];
-                        }
+                        Draw8BitSprite(width, height, xCoord, yCoord, N, planesToDraw[i], N * i);
                     }
                 }
             }
             else
             {
-                for (int i = 0; i < 16; i++)
+                std::vector<unsigned char> planesToDraw;
+                if (SelectedDrawingPlane & 0b01)
                 {
-                    if (yCoord + i >= height)
+                    planesToDraw.push_back(0b01);
+                }
+                if (SelectedDrawingPlane & 0b10)
+                {
+                    planesToDraw.push_back(0b10);
+                }
+
+                if (planesToDraw.size())
+                {
+                    for (auto i = 0u; i < planesToDraw.size(); i++)
                     {
-                        if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
-                        {
-                            Register[0xF] += 16 - i;
-                        }
-
-                        break;
-                    }
-
-                    uint16_t value = ((uint16_t)(MemoryBuffer[I + i * 2]) << 8) | MemoryBuffer[I + i * 2 + 1];
-
-                    bool bHadCollision{ false };
-
-                    for (int pix = 0; pix < 16; pix++)
-                    {
-                        if (xCoord + pix >= width)
-                            break;
-
-                        if (value >> (15 - pix) & 1)
-                        {
-                            if (Display[(yCoord + i) * width + xCoord + pix])
-                            {
-                                if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
-                                {
-                                    bHadCollision = true;
-                                }
-                                else
-                                {
-                                    Register[0xF] = 1;
-                                }
-                            }
-                            Display[(yCoord + i) * width + xCoord + pix] = !Display[(yCoord + i) * width + xCoord + pix];
-                        }
-                    }
-
-                    if (bHadCollision)
-                    {
-                        Register[0xF] += 1;
+                         Draw16BitSprite(width, height, xCoord, yCoord, N, planesToDraw[i], N * i);
                     }
                 }
             }
@@ -512,7 +479,12 @@ void Emulator::ProcessInstruction()
             switch (NN)
             {
                 case 0x01:
-                    SelectedDrawingPlane = X;
+                    if (Type == 4)
+                    {
+                        SelectedDrawingPlane = X;
+                    }
+                    else
+                        std::cerr << std::hex << (int)NN << " is not handled!" << std::endl;
                     break;
                 case 0x07:
                     Register[X] = DelayTimer;
@@ -604,6 +576,82 @@ void Emulator::ProcessInstruction()
     }
 
     IncrementProgramCounter();
+}
+
+void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset)
+{
+    for (int i = 0; i < N; i++)
+    {
+        if (yCoord + i >= height)
+        {
+            break;
+        }
+
+        unsigned char sprite = MemoryBuffer[I + i + memoryOffset];
+        std::bitset<8> bitset(sprite);
+
+        for (int pix = 0; pix < 8; pix++)
+        {
+            if (xCoord + pix >= width)
+                break;
+
+            if (bitset.test(7 - pix))
+            {
+                if (Display[(yCoord + i) * width + xCoord + pix] & byteOffset)
+                {
+                    Register[0xF] = 1;
+                }
+                Display[(yCoord + i) * width + xCoord + pix] ^= byteOffset;
+            }
+        }
+    }
+}
+
+void Emulator::Draw16BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset)
+{
+    for (int i = 0; i < 16; i++)
+    {
+        if (yCoord + i >= height)
+        {
+            if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
+            {
+                Register[0xF] += 16 - i;
+            }
+
+            break;
+        }
+
+        uint16_t value = ((uint16_t)(MemoryBuffer[I + memoryOffset + i * 2]) << 8) | MemoryBuffer[I + memoryOffset + i * 2 + 1];
+
+        bool bHadCollision{ false };
+
+        for (int pix = 0; pix < 16; pix++)
+        {
+            if (xCoord + pix >= width)
+                break;
+
+            if (value >> (15 - pix) & 1)
+            {
+                if (Display[(yCoord + i) * width + xCoord + pix] & byteOffset)
+                {
+                    if (Type == 2 && !bInLowRes) // SuperChip 1.1 in hires
+                    {
+                        bHadCollision = true;
+                    }
+                    else
+                    {
+                        Register[0xF] = 1;
+                    }
+                }
+                Display[(yCoord + i) * width + xCoord + pix] ^= byteOffset;
+            }
+        }
+
+        if (bHadCollision)
+        {
+            Register[0xF] += 1;
+        }
+    }
 }
 
 void Emulator::PrintRegister() const

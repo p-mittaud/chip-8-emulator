@@ -78,6 +78,10 @@ void WindowSFML::DrawDisplay(EmulatorDisplay InDisplay)
     sf::Color OffColor(WindowConfig.OffColor.r, WindowConfig.OffColor.g, WindowConfig.OffColor.b);
     sf::Color OnColor(WindowConfig.OnColor.r, WindowConfig.OnColor.g, WindowConfig.OnColor.b);
 
+    sf::Color FullColor(255, 255, 255);
+    sf::Color Color1(255, 0, 0);
+    sf::Color Color2(0, 255, 0);
+
     uint32_t PixelSize = WindowConfig.PixelSize * InDisplay.pixelSizeMultiplier;
     
     Window->clear(OffColor);
@@ -90,6 +94,7 @@ void WindowSFML::DrawDisplay(EmulatorDisplay InDisplay)
     {
         if (InDisplay.display[i])
         {
+            rectangle.setFillColor(InDisplay.display[i] == 0b11 ? FullColor : InDisplay.display[i] == 0b01 ? Color1 : Color2);
             rectangle.setPosition({(float)(i % InDisplay.width * PixelSize), (float)(i / InDisplay.width * PixelSize)});
             Window->draw(rectangle);
         }

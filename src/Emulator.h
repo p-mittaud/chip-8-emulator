@@ -61,6 +61,10 @@ public:
 private:
     void IncrementProgramCounter();
 
+    void Draw8BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset);
+    void Draw16BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset);
+
+
     // unsigned char MemoryBuffer[0x1000]{0};
     unsigned char MemoryBuffer[0x10000]{0};
     uint16_t MemoryBufferSize{0};
