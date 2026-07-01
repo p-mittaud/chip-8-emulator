@@ -208,7 +208,7 @@ void Emulator::ProcessInstruction()
                         }
                     );
                     // Clear remaining pixels
-                    std::transform(Display + (i + 1) * width - ScrollPixelNumber, Display + (i + 1) * width - 1, Display + (i + 1) * width - ScrollPixelNumber, 
+                    std::transform(Display + (i + 1) * width - ScrollPixelNumber, Display + (i + 1) * width, Display + (i + 1) * width - ScrollPixelNumber, 
                         [=](unsigned char pixel)
                         {
                             return pixel & ~SelectedDrawingPlane;
@@ -453,7 +453,7 @@ void Emulator::ProcessInstruction()
             int yCoord = Register[Y] % height;
             Register[0xF] = 0;
 
-            if (N != 0 || (N == 0 && bInLowRes))
+            if (N != 0 || (Type == 2 && N == 0 && bInLowRes)) // SuperChip legacy only draw 8x16 in low res
             {
                 if (N == 0)
                 {
@@ -494,7 +494,7 @@ void Emulator::ProcessInstruction()
                 {
                     for (auto i = 0u; i < planesToDraw.size(); i++)
                     {
-                         Draw16BitSprite(width, height, xCoord, yCoord, N, planesToDraw[i], N * i);
+                         Draw16BitSprite(width, height, xCoord, yCoord, N, planesToDraw[i], 16 * 2 * i);
                     }
                 }
             }
