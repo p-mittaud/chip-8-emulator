@@ -11,6 +11,10 @@ public:
 
     virtual bool LoadBeepSound(const std::string& InFile) = 0;
 
+    virtual bool LoadSoundArray(unsigned char* bytesArray, size_t arraySize) = 0;
+
+    virtual void SetPitch(float InPitch) = 0;
+
     virtual void PlayBeepSound(bool bShouldPlay) = 0;
 };
 

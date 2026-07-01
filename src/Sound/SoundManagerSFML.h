@@ -17,9 +17,11 @@ public:
     SoundManagerSFML(const std::string& InFile);
     virtual ~SoundManagerSFML() = default;
 
-    virtual bool LoadBeepSound(const std::string& InFile);
+    virtual bool LoadBeepSound(const std::string& InFile) override;
+    virtual bool LoadSoundArray(unsigned char* bytesArray, size_t arraySize) override;
+    virtual void SetPitch(float InPitch) override;
 
-    virtual void PlayBeepSound(bool bShouldPlay);
+    virtual void PlayBeepSound(bool bShouldPlay) override;
 
 private:
     std::shared_ptr<sf::SoundBuffer> BeepSoundBuffer;

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <algorithm>
+#include <cmath>
 
 #include "Input/InputManager.h"
 #include "Sound/SoundManager.h"
@@ -542,6 +543,11 @@ void Emulator::ProcessInstruction()
                 IncrementProgramCounter();
                 break;
             }
+            if (Type == 4 && NNN == 0x002)
+            {
+                SoundMgr->LoadSoundArray(&MemoryBuffer[I], 0x10);
+                break;
+            }
             switch (NN)
             {
                 case 0x01:
@@ -582,6 +588,16 @@ void Emulator::ProcessInstruction()
                     MemoryBuffer[I + 2] = (char)(Register[X] % 10);
                     MemoryBuffer[I + 1] = (char)((Register[X] / 10) % 10);
                     MemoryBuffer[I + 0] = (char)((Register[X] / 100) % 10);
+                    break;
+                case 0x3A:
+                    if (Type != 4)
+                    {
+                        std::cerr << std::hex << (int)NN << " is not handled!" << std::endl;
+                        break;
+                    }
+                    {
+                        SoundMgr->SetPitch(std::powf(2.0f, (Register[X] - 64) / 48.0f));
+                    }
                     break;
                 case 0x55:
                     for (unsigned char i = 0; i <= X; i++)
