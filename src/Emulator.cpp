@@ -60,7 +60,7 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
     MemoryBufferSize = Type == 4 ? 0x10000 : 0x1000;
 
     // Set Program Counter to the beginning of the loaded rom
-    PC = &MemoryBuffer[0x200];
+    PC = 0x200;
 
     // Load the font in Memory Buffer
     std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
@@ -73,7 +73,7 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::st
     MemoryBufferSize = Type == 4 ? 0x10000 : 0x1000;
 
     // Set Program Counter to the beginning of the loaded rom
-    PC = &MemoryBuffer[0x200];
+    PC = 0x200;
 
     // Load the font in Memory Buffer
     std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
@@ -129,8 +129,8 @@ void Emulator::ProcessInstruction()
     // Could create struct Instruction
 
     // Read the two bytes of the instruction
-    unsigned char byte1 = (unsigned char)*PC;
-    unsigned char NN = (unsigned char)*(PC + 1);
+    unsigned char byte1 = MemoryBuffer[PC];
+    unsigned char NN = MemoryBuffer[PC + 1];
 
     // Parse the content of instruction
     unsigned char Opcode = byte1 >> 4;
@@ -271,12 +271,12 @@ void Emulator::ProcessInstruction()
 
         case 0x1:
             // Jump to memory address
-            PC = &MemoryBuffer[NNN];
+            PC = NNN;
             return;
         case 0x2:
             // Start subroutine
             Stack.push(PC);
-            PC = &MemoryBuffer[NNN];
+            PC = NNN;
             // As we jump, we don't want to increment PC
             return;
         case 0x3:
@@ -284,7 +284,7 @@ void Emulator::ProcessInstruction()
             {
                 if (Type == 4) // Skip 4 bytes opcodes
                 {
-                    if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                    if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
                     {
                         IncrementProgramCounter();
                     }
@@ -297,7 +297,7 @@ void Emulator::ProcessInstruction()
             {
                 if (Type == 4) // Skip 4 bytes opcodes
                 {
-                    if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                    if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
                     {
                         IncrementProgramCounter();
                     }
@@ -314,7 +314,7 @@ void Emulator::ProcessInstruction()
                 {
                     if (Type == 4) // Skip 4 bytes opcodes
                     {
-                        if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
                         {
                             IncrementProgramCounter();
                         }
@@ -427,7 +427,7 @@ void Emulator::ProcessInstruction()
             {
                 if (Type == 4) // Skip 4 bytes opcodes
                 {
-                    if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                    if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
                     {
                         IncrementProgramCounter();
                     }
@@ -439,7 +439,7 @@ void Emulator::ProcessInstruction()
             I = NNN;
             break;
         case 0xB:
-            PC = &MemoryBuffer[NNN + Register[Type == 1 || Type == 4 ? 0 : X]];
+            PC = NNN + Register[Type == 1 || Type == 4 ? 0 : X];
             return;
         case 0xC:
             Register[X] = NN & (unsigned char)(rand() % 0x100);
@@ -507,7 +507,7 @@ void Emulator::ProcessInstruction()
                 {
                     if (Type == 4) // Skip 4 bytes opcodes
                     {
-                        if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
                         {
                             IncrementProgramCounter();
                         }
@@ -521,7 +521,7 @@ void Emulator::ProcessInstruction()
                 {
                     if (Type == 4) // Skip 4 bytes opcodes
                     {
-                        if (*(PC + 2) == 0xF0 && *(PC + 3) == 0x00)
+                        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
                         {
                             IncrementProgramCounter();
                         }
@@ -537,8 +537,8 @@ void Emulator::ProcessInstruction()
         case 0xF:
             if (Type == 4 && NNN == 0)
             {
-                unsigned char b1 = (unsigned char)*(PC + 2);
-                unsigned char b2 = (unsigned char)*(PC + 3);
+                unsigned char b1 = MemoryBuffer[PC + 2];
+                unsigned char b2 = MemoryBuffer[PC + 3];
                 I = (uint16_t(b1) << 8) | b2;
                 IncrementProgramCounter();
                 break;
@@ -810,5 +810,5 @@ std::string Emulator::GetSaveFileName() const
 
 void Emulator::IncrementProgramCounter()
 {
-    PC = PC + 2;
+    PC += 2;
 }

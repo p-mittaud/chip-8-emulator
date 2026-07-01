@@ -49,7 +49,7 @@ public:
         };
     }
 
-    unsigned char GetNextOpcode() const { return (unsigned char)((unsigned char)*PC >> 4); }
+    unsigned char GetNextOpcode() const { return (unsigned char)(MemoryBuffer[PC] >> 4); }
 
     bool IsInLowRes() const { return bInLowRes; }
 
@@ -73,9 +73,9 @@ private:
     unsigned char DelayTimer{0};
     unsigned char SoundTimer{0};
 
-    std::stack<unsigned char*> Stack{};
+    std::stack<uint16_t> Stack{};
 
-    unsigned char* PC{nullptr};  // The program counter
+    uint16_t PC{};  // The program counter
     // unsigned char* I{nullptr};   // The Index Register
     uint16_t I{}; // The Index Register
 
