@@ -329,7 +329,7 @@ void Emulator::ProcessInstruction()
                     // Write registers X to Y to I. With X > Y or X < Y
                     {
                         int increment = 0;
-                        for (int v = X; X <= Y ? v <= Y : v > Y; X <= Y ? v++ : v--)
+                        for (int v = X; X <= Y ? v <= Y : v >= Y; X <= Y ? v++ : v--)
                         {
                             MemoryBuffer[I + increment++] = Register[v];
                         }
@@ -341,7 +341,7 @@ void Emulator::ProcessInstruction()
                     // Load Register from I to X to Y. With X > Y or X < Y
                     {
                         int increment = 0;
-                        for (int v = X; X <= Y ? v <= Y : v > Y; X <= Y ? v++ : v--)
+                        for (int v = X; X <= Y ? v <= Y : v >= Y; X <= Y ? v++ : v--)
                         {
                             Register[v] = MemoryBuffer[I + increment++];
                         }
