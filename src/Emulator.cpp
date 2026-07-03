@@ -583,7 +583,7 @@ void Emulator::ProcessInstruction()
                     {
                         bool UpdateFlags = I + Register[X] >= MemoryBufferSize ? true : false;
                         I += Register[X];
-                        Register[0xF] = UpdateFlags ? 1 : 0;
+                        // Register[0xF] = UpdateFlags ? 1 : 0; // TODO: Add quirk
                     }
                     break;
                 case 0x29:
