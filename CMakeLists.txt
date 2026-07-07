@@ -23,7 +23,7 @@ target_link_libraries(chip-8-emulator PRIVATE
 
 target_include_directories(chip-8-emulator PRIVATE src)
 
-install(TARGETS chip-8-emulator DESTINATION .)
+install(TARGETS chip-8-emulator DESTINATION bin)
 
 if(WIN32)
     if(NOT DEFINED VCPKG_TARGET_TRIPLET)
@@ -34,8 +34,18 @@ if(WIN32)
 
     if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/${CURRENT_TRIPLET}/bin/")
         install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${CURRENT_TRIPLET}/bin/"
-                DESTINATION .
+                DESTINATION bin
                 FILES_MATCHING PATTERN "*.dll"
         )
     endif()
+
+    get_filename_component(MINGW_BIN_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    
+    set(MINGW_DLLS
+        "${MINGW_BIN_DIR}/libgcc_s_seh-1.dll"
+        "${MINGW_BIN_DIR}/libstdc++-6.dll"
+        "${MINGW_BIN_DIR}/libwinpthread-1.dll"
+    )
+    
+    install(FILES ${MINGW_DLLS} DESTINATION bin)
 endif()
