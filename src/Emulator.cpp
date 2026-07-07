@@ -2,7 +2,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <bitset>
 #include <cstdint>
 
 #include <cstring>
@@ -66,6 +65,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
     std::memcpy(MemoryBuffer, CHIP8Font, sizeof(CHIP8Font)); // Fix for binding.ch8 which doens't get the character but directly use I
     std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
     std::memcpy(&MemoryBuffer[HiResFontOffset], SuperChipFont, sizeof(SuperChipFont));
+
+    LoadOpcodes();
 }
 
 Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM, int InType)
@@ -118,535 +119,19 @@ void Emulator::DecrementTimers()
 
 void Emulator::ProcessInstruction()
 {
+    bIncrementPC = true;
     CurrentInstruction = Instruction(MemoryBuffer[PC], MemoryBuffer[PC + 1]);
 
-    switch (CurrentInstruction.Opcode)
+    if (OpcodeFunctions.count(CurrentInstruction.Opcode))
     {
-        case 0x0:
-            if (CurrentInstruction.NNN == 0xE0)
-            {
-                // Clear screen
-                std::transform(Display, Display + DisplaySize, Display,
-                    [=](unsigned char pixel) { return pixel & ~SelectedDrawingPlane; }
-                );
-            }
-            else if (CurrentInstruction.NNN == 0x0EE)
-            {
-                PC = Stack.top();
-                Stack.pop();
-            }
-            else if (CurrentInstruction.NNN == 0x0FF)
-            {
-                bInLowRes = false;
-                memset(Display, false, DisplaySize);
-            }
-            else if (CurrentInstruction.NNN == 0x0FE)
-            {
-                bInLowRes = true;
-                memset(Display, false, DisplaySize);
-            }
-            else if (CurrentInstruction.NNN == 0x0FB)
-            {
-                // Scroll right
-                int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
-                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
-                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
-
-                // Do a copy of the Display array
-                unsigned char DisplayCopy[width * height];
-                memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
-
-                for (auto i = 0u; i < height; i++)
-                {
-                    std::transform(DisplayCopy + i * width, DisplayCopy + i * width + (width - ScrollPixelNumber), Display + i * width + ScrollPixelNumber, Display + i * width + ScrollPixelNumber,
-                        [=](unsigned char srcPixel, unsigned char destPixel)
-                        {
-                            return (destPixel & ~SelectedDrawingPlane) | (srcPixel & SelectedDrawingPlane);
-                        }
-                    );
-
-                    std::transform(Display + i * width, Display + i * width + ScrollPixelNumber, Display + i * width, 
-                        [=](unsigned char pixel)
-                        {
-                            return pixel & ~SelectedDrawingPlane;
-                        }
-                    );
-                }
-            }
-            else if (CurrentInstruction.NNN == 0x0FC)
-            {
-                // Scroll left
-                int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
-                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
-                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
-
-                for (auto i = 0u; i < height; i++)
-                {
-                    std::transform(Display + i * width, Display + (i + 1) * width - ScrollPixelNumber, Display + i * width + ScrollPixelNumber, Display + i * width,
-                        [=](unsigned char srcPixel, unsigned char destPixel)
-                        {
-                            return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
-                        }
-                    );
-                    // Clear remaining pixels
-                    std::transform(Display + (i + 1) * width - ScrollPixelNumber, Display + (i + 1) * width, Display + (i + 1) * width - ScrollPixelNumber, 
-                        [=](unsigned char pixel)
-                        {
-                            return pixel & ~SelectedDrawingPlane;
-                        }
-                    );
-                }
-            }
-            else if (CurrentInstruction.X == 0x0 && CurrentInstruction.Y == 0xC) // Scroll Down
-            {
-                if (Type == 2 && bInLowRes)
-                {
-                    CurrentInstruction.N /= 2;
-                }
-
-                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
-                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
-
-                unsigned char DisplayCopy[width * height];
-                memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
-
-                std::transform(DisplayCopy, DisplayCopy + width * height - CurrentInstruction.N * width, Display + CurrentInstruction.N * width, Display + CurrentInstruction.N * width,
-                    [=](unsigned char srcPixel, unsigned char destPixel)
-                    {
-                        return (srcPixel & SelectedDrawingPlane) | (destPixel & ~SelectedDrawingPlane);
-                    }
-                );
-
-                std::transform(Display, Display + CurrentInstruction.N * width, Display,
-                    [=](unsigned char pixel)
-                    {
-                        return pixel & ~SelectedDrawingPlane;
-                    }
-                );
-            }
-            else if (CurrentInstruction.X == 0x0 && CurrentInstruction.Y == 0xD && Type == 4) // Scroll Up
-            {
-                auto width = bInLowRes ? WidthLowRes : WidthHighRes;
-                auto height = bInLowRes ? HeightLowRes : HeightHighRes;
-
-                // Scrolls pixel up
-                std::transform(Display, Display + width * height - CurrentInstruction.N * width, Display + CurrentInstruction.N * width, Display, 
-                    [=](unsigned char srcPixel, unsigned char destPixel)
-                    {
-                        return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
-                    }
-                );
-                // Clear remaining pixels
-                std::transform(Display + width * height - CurrentInstruction.N * width, Display + width * height - 1, Display + width * height - CurrentInstruction.N * width, 
-                    [=](unsigned char pixel)
-                    {
-                        return pixel & ~SelectedDrawingPlane;
-                    }
-                );
-            }
-            else
-            {
-                std::cerr << "CurrentInstruction.Opcode " << std::hex << (int)CurrentInstruction.Opcode << CurrentInstruction.NNN << " not handled!" << std::endl;
-            }
-            break;
-
-        case 0x1:
-            // Jump to memory address
-            PC = CurrentInstruction.NNN;
-            return;
-        case 0x2:
-            // Start subroutine
-            Stack.push(PC);
-            PC = CurrentInstruction.NNN;
-            // As we jump, we don't want to increment PC
-            return;
-        case 0x3:
-            if (Register[CurrentInstruction.X] == CurrentInstruction.NN)
-            {
-                if (Type == 4) // Skip 4 bytes opcodes
-                {
-                    if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
-                    {
-                        IncrementProgramCounter();
-                    }
-                }
-                IncrementProgramCounter();
-            }
-            break;
-        case 0x4:
-            if (Register[CurrentInstruction.X] != CurrentInstruction.NN)
-            {
-                if (Type == 4) // Skip 4 bytes opcodes
-                {
-                    if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
-                    {
-                        IncrementProgramCounter();
-                    }
-                }
-                IncrementProgramCounter();
-            }
-            break;
-        case 0x5:
-            switch (CurrentInstruction.N)
-            {
-                case 0:
-                {
-                if (Register[CurrentInstruction.X] == Register[CurrentInstruction.Y])
-                {
-                    if (Type == 4) // Skip 4 bytes opcodes
-                    {
-                        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
-                        {
-                            IncrementProgramCounter();
-                        }
-                    }
-                    IncrementProgramCounter();
-                }
-                break;
-                }
-                case 2:
-                    if (Type != 4)
-                        break;
-                    // Write registers CurrentInstruction.X to CurrentInstruction.Y to I. With CurrentInstruction.X > CurrentInstruction.Y or CurrentInstruction.X < CurrentInstruction.Y
-                    {
-                        int increment = 0;
-                        for (int v = CurrentInstruction.X; CurrentInstruction.X <= CurrentInstruction.Y ? v <= CurrentInstruction.Y : v >= CurrentInstruction.Y; CurrentInstruction.X <= CurrentInstruction.Y ? v++ : v--)
-                        {
-                            MemoryBuffer[I + increment++] = Register[v];
-                        }
-                    }
-                    break;
-                case 3:
-                    if (Type != 4)
-                        break;
-                    // Load Register from I to CurrentInstruction.X to CurrentInstruction.Y. With CurrentInstruction.X > CurrentInstruction.Y or CurrentInstruction.X < CurrentInstruction.Y
-                    {
-                        int increment = 0;
-                        for (int v = CurrentInstruction.X; CurrentInstruction.X <= CurrentInstruction.Y ? v <= CurrentInstruction.Y : v >= CurrentInstruction.Y; CurrentInstruction.X <= CurrentInstruction.Y ? v++ : v--)
-                        {
-                            Register[v] = MemoryBuffer[I + increment++];
-                        }
-                    }
-                    break;
-                default:
-                    std::cerr << "Operation 0x5XY" << CurrentInstruction.N << " is not handled!" << std::endl;
-                    break;
-            }
-            break;
-        case 0x6:
-            Register[CurrentInstruction.X] = CurrentInstruction.NN;
-            break;
-        case 0x7:
-            Register[CurrentInstruction.X] += CurrentInstruction.NN;
-            break;
-        case 0x8:
-            switch (CurrentInstruction.N)
-            {
-                case 0x0:
-                Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
-                    break;
-                case 0x1:
-                Register[CurrentInstruction.X] |= Register[CurrentInstruction.Y];
-                if (Type == 1)
-                    Register[0xF] = 0;
-                    break;
-                case 0x2:
-                Register[CurrentInstruction.X] &= Register[CurrentInstruction.Y];
-                if (Type == 1)
-                    Register[0xF] = 0;
-                    break;
-                case 0x3:
-                Register[CurrentInstruction.X] ^= Register[CurrentInstruction.Y];
-                if (Type == 1)
-                    Register[0xF] = 0;
-                    break;
-                case 0x4:
-                {
-                    unsigned char overlfow = (unsigned char)(Register[CurrentInstruction.X] + Register[CurrentInstruction.Y]) < Register[CurrentInstruction.X] ? 1 : 0;
-                    Register[CurrentInstruction.X] += Register[CurrentInstruction.Y];
-                    Register[0xF] = overlfow;
-                }
-                    break;
-                case 0x5:
-                {
-                    unsigned char flag = Register[CurrentInstruction.X] >= Register[CurrentInstruction.Y];
-                    Register[CurrentInstruction.X] -= Register[CurrentInstruction.Y];
-                    Register[0xF] = flag;
-                }
-                    break;
-                case 0x6:
-                {
-                    if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
-                        Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
-                    unsigned char flag = Register[CurrentInstruction.X] & 0x1u;
-                    Register[CurrentInstruction.X] = Register[CurrentInstruction.X] >> 1;
-                    Register[0xF] = flag;
-                }
-                    break;
-                case 0x7:
-                {
-                    unsigned char flag = Register[CurrentInstruction.Y] >= Register[CurrentInstruction.X] ? 1 : 0;
-                    Register[CurrentInstruction.X] = Register[CurrentInstruction.Y] - Register[CurrentInstruction.X];
-                    Register[0xF] = flag;
-                }
-                    break;
-                case 0xE:
-                {
-                    if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
-                        Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
-                    unsigned char flag = Register[CurrentInstruction.X] >> 7u;
-                    Register[CurrentInstruction.X] = Register[CurrentInstruction.X] << 1;
-                    Register[0xF] = flag;
-                }
-                    break;
-                default:
-                    std::cerr << "Case " << CurrentInstruction.N << " not handled!" << std::endl;
-            }
-            break;
-        case 0x9:
-            if (Register[CurrentInstruction.X] != Register[CurrentInstruction.Y])
-            {
-                if (Type == 4) // Skip 4 bytes opcodes
-                {
-                    if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
-                    {
-                        IncrementProgramCounter();
-                    }
-                }
-                IncrementProgramCounter();
-            }
-            break;
-        case 0xA:
-            I = CurrentInstruction.NNN;
-            break;
-        case 0xB:
-            PC = CurrentInstruction.NNN + Register[Type == 1 || Type == 4 ? 0 : CurrentInstruction.X];
-            return;
-        case 0xC:
-            Register[CurrentInstruction.X] = CurrentInstruction.NN & (unsigned char)(rand() % 0x100);
-            break;
-        case 0xD:
-        {
-            int width = bInLowRes ? WidthLowRes : WidthHighRes;
-            int height = bInLowRes ? HeightLowRes : HeightHighRes;
-
-            int xCoord = Register[CurrentInstruction.X] % width;
-            int yCoord = Register[CurrentInstruction.Y] % height;
-            Register[0xF] = 0;
-
-            if (CurrentInstruction.N != 0 || (Type == 2 && CurrentInstruction.N == 0 && bInLowRes)) // SuperChip legacy only draw 8x16 in low res
-            {
-                if (CurrentInstruction.N == 0)
-                {
-                    CurrentInstruction.N = 16;
-                }
-
-                std::vector<unsigned char> planesToDraw;
-                if (SelectedDrawingPlane & 0b01)
-                {
-                    planesToDraw.push_back(0b01);
-                }
-                if (SelectedDrawingPlane & 0b10)
-                {
-                    planesToDraw.push_back(0b10);
-                }
-
-                if (planesToDraw.size())
-                {
-                    for (auto i = 0u; i < planesToDraw.size(); i++)
-                    {
-                        Draw8BitSprite(width, height, xCoord, yCoord, CurrentInstruction.N, planesToDraw[i], CurrentInstruction.N * i);
-                    }
-                }
-                else
-                {
-                    std::cerr << "Trying to draw with no planes selected!" << std::endl;
-                }
-            }
-            else
-            {
-                std::vector<unsigned char> planesToDraw;
-                if (SelectedDrawingPlane & 0b01)
-                {
-                    planesToDraw.push_back(0b01);
-                }
-                if (SelectedDrawingPlane & 0b10)
-                {
-                    planesToDraw.push_back(0b10);
-                }
-
-                if (planesToDraw.size())
-                {
-                    for (auto i = 0u; i < planesToDraw.size(); i++)
-                    {
-                         Draw16BitSprite(width, height, xCoord, yCoord, CurrentInstruction.N, planesToDraw[i], 16 * 2 * i);
-                    }
-                }
-                else
-                {
-                    std::cerr << "Trying to draw with no planes selected!" << std::endl;
-                }
-            }
-        }
-            break;
-        case 0xE:
-            if (CurrentInstruction.NN == 0x9E)
-            {
-                if (InputMgr && InputMgr->IsKeyPressed(Register[CurrentInstruction.X]))
-                {
-                    if (Type == 4) // Skip 4 bytes opcodes
-                    {
-                        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
-                        {
-                            IncrementProgramCounter();
-                        }
-                    }
-                    IncrementProgramCounter();
-                }
-            }
-            else if (CurrentInstruction.NN == 0xA1)
-            {
-                if (InputMgr && !InputMgr->IsKeyPressed(Register[CurrentInstruction.X]))
-                {
-                    if (Type == 4) // Skip 4 bytes opcodes
-                    {
-                        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
-                        {
-                            IncrementProgramCounter();
-                        }
-                    }
-                    IncrementProgramCounter();
-                }
-            }
-            else
-            {
-                std::cerr << std::hex << "Invalid CurrentInstruction.NN \"" << (int)CurrentInstruction.NN << "\" for operation " << (int)CurrentInstruction.Opcode << std::dec << std::endl;
-            }
-            break;
-        case 0xF:
-            if (Type == 4 && CurrentInstruction.NNN == 0)
-            {
-                unsigned char b1 = MemoryBuffer[PC + 2];
-                unsigned char b2 = MemoryBuffer[PC + 3];
-                I = (uint16_t(b1) << 8) | b2;
-                IncrementProgramCounter();
-                break;
-            }
-            if (Type == 4 && CurrentInstruction.NNN == 0x002)
-            {
-                SoundMgr->LoadSoundArray(&MemoryBuffer[I], 0x10);
-                break;
-            }
-            switch (CurrentInstruction.NN)
-            {
-                case 0x01:
-                    if (Type == 4)
-                    {
-                        SelectedDrawingPlane = CurrentInstruction.X;
-                    }
-                    else
-                        std::cerr << std::hex << (int)CurrentInstruction.NN << " is not handled!" << std::endl;
-                    break;
-                case 0x07:
-                    Register[CurrentInstruction.X] = DelayTimer;
-                    break;
-                case 0x15:
-                    DelayTimer = Register[CurrentInstruction.X];
-                    break;
-                case 0x18:
-                    SoundTimer = Register[CurrentInstruction.X];
-                    if (SoundMgr)
-                    {
-                        SoundMgr->PlayBeepSound(SoundTimer > 0);
-                    }
-                    break;
-                case 0x1E:
-                    {
-                        bool UpdateFlags = I + Register[CurrentInstruction.X] >= MemoryBufferSize ? true : false;
-                        I += Register[CurrentInstruction.X];
-                        // Register[0xF] = UpdateFlags ? 1 : 0; // TODO: Add quirk
-                    }
-                    break;
-                case 0x29:
-                    I = FontOffset + Register[CurrentInstruction.X] * 5;
-                    break;
-                case 0x30:
-                    I = HiResFontOffset + Register[CurrentInstruction.X] * 10;
-                    break;
-                case 0x33:
-                    MemoryBuffer[I + 2] = (char)(Register[CurrentInstruction.X] % 10);
-                    MemoryBuffer[I + 1] = (char)((Register[CurrentInstruction.X] / 10) % 10);
-                    MemoryBuffer[I + 0] = (char)((Register[CurrentInstruction.X] / 100) % 10);
-                    break;
-                case 0x3A:
-                    if (Type != 4)
-                    {
-                        std::cerr << std::hex << (int)CurrentInstruction.NN << " is not handled!" << std::endl;
-                        break;
-                    }
-                    {
-                        SoundMgr->SetPitch(std::powf(2.0f, (Register[CurrentInstruction.X] - 64) / 48.0f));
-                    }
-                    break;
-                case 0x55:
-                    for (unsigned char i = 0; i <= CurrentInstruction.X; i++)
-                    {
-                        MemoryBuffer[I + i] = Register[i];
-                    }
-                    if (Type == 1 || Type == 4)
-                        I += CurrentInstruction.X + 1;
-                    break;
-                case 0x65:
-                    for (unsigned char i = 0; i <= CurrentInstruction.X; i++)
-                    {
-                        Register[i] = MemoryBuffer[I + i];
-                    }
-                    if (Type == 1 || Type == 4)
-                        I += CurrentInstruction.X + 1;
-                    break;
-
-                case 0x75:
-                    {
-                        // Create saves folder if it doesn't exists
-                        std::filesystem::path savePath = std::filesystem::path(GetSaveFileName()).parent_path();
-                        if (!savePath.empty())
-                        {
-                            std::filesystem::create_directories(savePath);
-                        }
-
-                        std::ofstream file(GetSaveFileName(), std::ios::out | std::ios::binary);
-                        file.write(reinterpret_cast<char*>(Register), CurrentInstruction.X + 1);
-                        file.close();
-                    }
-                    break;
-                case 0x85:
-                    {
-                        std::ifstream file(GetSaveFileName(), std::ios::in | std::ios::binary);
-                        file.read(reinterpret_cast<char*>(Register), CurrentInstruction.X + 1);
-                        file.close();
-                    }
-                    break;
-
-                case 0x0A:
-                    if (InputMgr && InputMgr->IsAnyKeyReleased())
-                    {
-                        Register[CurrentInstruction.X] = InputMgr->GetReleasedKey();
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                default:
-                    std::cerr << std::hex << (int)CurrentInstruction.NN << " is not handled!" << std::endl;
-            }
-            break;
-        default:
-            std::cerr << std::hex << "CurrentInstruction.Opcode " << (int)CurrentInstruction.Opcode << " not handled!" << std::dec << std::endl;
-            break;
+        auto Function = OpcodeFunctions[CurrentInstruction.Opcode];
+        (this->*Function)();
     }
 
-    IncrementProgramCounter();
+    if (bIncrementPC)
+    {
+        IncrementProgramCounter();
+    }
 }
 
 void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset)
@@ -668,7 +153,6 @@ void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, uns
         }
 
         unsigned char sprite = MemoryBuffer[I + i + memoryOffset];
-        std::bitset<8> bitset(sprite);
 
         for (int pix = 0; pix < 8; pix++)
         {
@@ -687,7 +171,7 @@ void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, uns
             // if (xCoord + pix >= width)
             //     break;
 
-            if (bitset.test(7 - pix))
+            if (sprite >> (7 - pix) & 1)
             {
                 if (Display[(yCoordDesired) * width + xCoordDesired] & byteOffset)
                 {
@@ -800,4 +284,689 @@ std::string Emulator::GetSaveFileName() const
 void Emulator::IncrementProgramCounter()
 {
     PC += 2;
+}
+
+void Emulator::LoadOpcodes()
+{
+    OpcodeFunctions[0x0] = (this, &Emulator::Handle0x0);
+    LoadOpcodes0x0();
+    OpcodeFunctions[0x1] = (this, &Emulator::Handle0x1);
+    OpcodeFunctions[0x2] = (this, &Emulator::Handle0x2);
+    OpcodeFunctions[0x3] = (this, &Emulator::Handle0x3);
+    OpcodeFunctions[0x4] = (this, &Emulator::Handle0x4);
+    OpcodeFunctions[0x5] = (this, &Emulator::Handle0x5);
+    LoadOpcodes0x5();
+    OpcodeFunctions[0x6] = (this, &Emulator::Handle0x6);
+    OpcodeFunctions[0x7] = (this, &Emulator::Handle0x7);
+    OpcodeFunctions[0x8] = (this, &Emulator::Handle0x8);
+    LoadOpcodes0x8();
+    OpcodeFunctions[0x9] = (this, &Emulator::Handle0x9);
+    OpcodeFunctions[0xA] = (this, &Emulator::Handle0xA);
+    OpcodeFunctions[0xB] = (this, &Emulator::Handle0xB);
+    OpcodeFunctions[0xC] = (this, &Emulator::Handle0xC);
+    OpcodeFunctions[0xD] = (this, &Emulator::Handle0xD);
+    OpcodeFunctions[0xE] = (this, &Emulator::Handle0xE);
+    LoadOpcodes0xE();
+    OpcodeFunctions[0xF] = (this, &Emulator::Handle0xF);
+    LoadOpcodes0xF();
+}
+
+void Emulator::LoadOpcodes0x0()
+{
+    Opcode0x0Functions[0x0E0] = (this, &Emulator::Handle0x0E0);
+    Opcode0x0Functions[0x0EE] = (this, &Emulator::Handle0x0EE);
+    if (Type != 1)
+    {
+        Opcode0x0Functions[0x0FF] = (this, &Emulator::Handle0x0FF);
+        Opcode0x0Functions[0x0FE] = (this, &Emulator::Handle0x0FE);
+        Opcode0x0Functions[0x0FB] = (this, &Emulator::Handle0x0FB);
+        Opcode0x0Functions[0x0FC] = (this, &Emulator::Handle0x0FC);
+        Opcode0x0Functions[0x0C0] = (this, &Emulator::Handle0x0CN);
+    }
+    if (Type == 4)
+    {
+        Opcode0x0Functions[0x0D0] = (this, &Emulator::Handle0x0DN);
+    }
+}
+
+void Emulator::LoadOpcodes0x5()
+{
+    Opcode0x5Functions[0x0] = (this, &Emulator::Handle0x5XY0);
+    if (Type == 4)
+    {
+        Opcode0x5Functions[0x2] = (this, &Emulator::Handle0x5XY2);
+        Opcode0x5Functions[0x3] = (this, &Emulator::Handle0x5XY3);
+    }
+}
+
+void Emulator::LoadOpcodes0x8()
+{
+    Opcode0x8Functions[0x0] = (this, &Emulator::Handle0x8XY0);
+    Opcode0x8Functions[0x1] = (this, &Emulator::Handle0x8XY1);
+    Opcode0x8Functions[0x2] = (this, &Emulator::Handle0x8XY2);
+    Opcode0x8Functions[0x3] = (this, &Emulator::Handle0x8XY3);
+    Opcode0x8Functions[0x4] = (this, &Emulator::Handle0x8XY4);
+    Opcode0x8Functions[0x5] = (this, &Emulator::Handle0x8XY5);
+    Opcode0x8Functions[0x6] = (this, &Emulator::Handle0x8XY6);
+    Opcode0x8Functions[0x7] = (this, &Emulator::Handle0x8XY7);
+    Opcode0x8Functions[0xE] = (this, &Emulator::Handle0x8XYE);
+}
+
+void Emulator::LoadOpcodes0xE()
+{
+    Opcode0xEFunctions[0x9E] = &Emulator::Handle0xEX9E;
+    Opcode0xEFunctions[0xA1] = &Emulator::Handle0xEXA1;
+}
+
+void Emulator::LoadOpcodes0xF()
+{
+    Opcode0xFFunctions[0x07] = &Emulator::Handle0xFX07;
+    Opcode0xFFunctions[0x0A] = &Emulator::Handle0xFX0A;
+    Opcode0xFFunctions[0x15] = &Emulator::Handle0xFX15;
+    Opcode0xFFunctions[0x18] = &Emulator::Handle0xFX18;
+    Opcode0xFFunctions[0x1E] = &Emulator::Handle0xFX1E;
+    Opcode0xFFunctions[0x29] = &Emulator::Handle0xFX29;
+    Opcode0xFFunctions[0x33] = &Emulator::Handle0xFX33;
+    Opcode0xFFunctions[0x55] = &Emulator::Handle0xFX55;
+    Opcode0xFFunctions[0x65] = &Emulator::Handle0xFX65;
+
+    if (Type != 1)
+    {
+        Opcode0xFFunctions[0x30] = &Emulator::Handle0xFX30;
+        Opcode0xFFunctions[0x75] = &Emulator::Handle0xFX75;
+        Opcode0xFFunctions[0x85] = &Emulator::Handle0xFX85;
+    }
+    if (Type == 4)
+    {
+        Opcode0xFFunctions[0x00] = &Emulator::Handle0xF000;
+        Opcode0xFFunctions[0x01] = &Emulator::Handle0xFX01;
+        Opcode0xFFunctions[0x02] = &Emulator::Handle0xF002;
+        Opcode0xFFunctions[0x3A] = &Emulator::Handle0xFX3A;
+    }
+}
+
+void Emulator::Handle0x0()
+{
+    if (CurrentInstruction.X != 0)
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        return;
+    }
+
+    if (Opcode0x0Functions.count(CurrentInstruction.NN))
+    {
+        auto Function = Opcode0x0Functions[CurrentInstruction.NN];
+        (this->*Function)();
+    }
+    else
+    {
+        if (Opcode0x0Functions.count(CurrentInstruction.NN & ~0b1111)) // We remove the last four bits of NNN to handle 0x00CN and 0x00DN
+        {
+            auto Function = Opcode0x0Functions[CurrentInstruction.NN & ~0b1111];
+            (this->*Function)();
+        }
+        else
+        {
+            std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        }
+    }
+}
+
+void Emulator::Handle0x0E0()
+{
+    // Clear screen
+    std::transform(Display, Display + DisplaySize, Display,
+        [=](unsigned char pixel) { return pixel & ~SelectedDrawingPlane; }
+    );
+}
+
+void Emulator::Handle0x0EE()
+{
+    PC = Stack.top();
+    Stack.pop();
+}
+
+void Emulator::Handle0x0FF()
+{
+    bInLowRes = false;
+    memset(Display, false, DisplaySize);
+}
+
+void Emulator::Handle0x0FE()
+{
+    bInLowRes = true;
+    memset(Display, false, DisplaySize);
+}
+
+void Emulator::Handle0x0FB()
+{
+    // Scroll right
+    int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
+    auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+    auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+    // Do a copy of the Display array
+    unsigned char DisplayCopy[width * height];
+    memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
+
+    for (auto i = 0u; i < height; i++)
+    {
+        std::transform(DisplayCopy + i * width, DisplayCopy + i * width + (width - ScrollPixelNumber), Display + i * width + ScrollPixelNumber, Display + i * width + ScrollPixelNumber,
+            [=](unsigned char srcPixel, unsigned char destPixel)
+            {
+                return (destPixel & ~SelectedDrawingPlane) | (srcPixel & SelectedDrawingPlane);
+            }
+        );
+
+        std::transform(Display + i * width, Display + i * width + ScrollPixelNumber, Display + i * width, 
+            [=](unsigned char pixel)
+            {
+                return pixel & ~SelectedDrawingPlane;
+            }
+        );
+    }
+}
+
+void Emulator::Handle0x0FC()
+{
+    // Scroll left
+    int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
+    auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+    auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+    for (auto i = 0u; i < height; i++)
+    {
+        std::transform(Display + i * width, Display + (i + 1) * width - ScrollPixelNumber, Display + i * width + ScrollPixelNumber, Display + i * width,
+            [=](unsigned char srcPixel, unsigned char destPixel)
+            {
+                return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
+            }
+        );
+        // Clear remaining pixels
+        std::transform(Display + (i + 1) * width - ScrollPixelNumber, Display + (i + 1) * width, Display + (i + 1) * width - ScrollPixelNumber, 
+            [=](unsigned char pixel)
+            {
+                return pixel & ~SelectedDrawingPlane;
+            }
+        );
+    }
+}
+
+void Emulator::Handle0x0CN()
+{
+    if (Type == 2 && bInLowRes)
+    {
+        CurrentInstruction.N /= 2;
+    }
+
+    auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+    auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+    unsigned char DisplayCopy[width * height];
+    memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
+
+    std::transform(DisplayCopy, DisplayCopy + width * height - CurrentInstruction.N * width, Display + CurrentInstruction.N * width, Display + CurrentInstruction.N * width,
+        [=](unsigned char srcPixel, unsigned char destPixel)
+        {
+            return (srcPixel & SelectedDrawingPlane) | (destPixel & ~SelectedDrawingPlane);
+        }
+    );
+
+    std::transform(Display, Display + CurrentInstruction.N * width, Display,
+        [=](unsigned char pixel)
+        {
+            return pixel & ~SelectedDrawingPlane;
+        }
+    );
+}
+
+void Emulator::Handle0x0DN()
+{
+    auto width = bInLowRes ? WidthLowRes : WidthHighRes;
+    auto height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+    // Scrolls pixel up
+    std::transform(Display, Display + width * height - CurrentInstruction.N * width, Display + CurrentInstruction.N * width, Display, 
+        [=](unsigned char srcPixel, unsigned char destPixel)
+        {
+            return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
+        }
+    );
+    // Clear remaining pixels
+    std::transform(Display + width * height - CurrentInstruction.N * width, Display + width * height - 1, Display + width * height - CurrentInstruction.N * width, 
+        [=](unsigned char pixel)
+        {
+            return pixel & ~SelectedDrawingPlane;
+        }
+    );
+}
+
+void Emulator::Handle0x1()
+{
+    PC = CurrentInstruction.NNN;
+    bIncrementPC = false;
+}
+
+void Emulator::Handle0x2()
+{
+    Stack.push(PC);
+    PC = CurrentInstruction.NNN;
+    bIncrementPC = false;
+}
+
+void Emulator::Handle0x3()
+{
+    if (Register[CurrentInstruction.X] == CurrentInstruction.NN)
+    {
+        SkipNextInstruction();
+    }
+}
+
+void Emulator::Handle0x4()
+{
+    if (Register[CurrentInstruction.X] != CurrentInstruction.NN)
+    {
+        SkipNextInstruction();
+    }
+}
+
+void Emulator::Handle0x5()
+{
+    if (Opcode0x5Functions.count(CurrentInstruction.N))
+    {
+        auto Function = Opcode0x5Functions[CurrentInstruction.N];
+        (this->*Function)();
+    }
+    else
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+    }
+}
+
+void Emulator::Handle0x5XY0()
+{
+    if (Register[CurrentInstruction.X] == Register[CurrentInstruction.Y])
+    {
+        SkipNextInstruction();
+    }
+}
+
+void Emulator::Handle0x5XY2()
+{
+    if (Type != 4)
+        return;
+    // Write registers CurrentInstruction.X to CurrentInstruction.Y to I. With CurrentInstruction.X > CurrentInstruction.Y or CurrentInstruction.X < CurrentInstruction.Y
+    {
+        int increment = 0;
+        for (int v = CurrentInstruction.X; CurrentInstruction.X <= CurrentInstruction.Y ? v <= CurrentInstruction.Y : v >= CurrentInstruction.Y; CurrentInstruction.X <= CurrentInstruction.Y ? v++ : v--)
+        {
+            MemoryBuffer[I + increment++] = Register[v];
+        }
+    }
+}
+
+void Emulator::Handle0x5XY3()
+{
+    if (Type != 4)
+        return;
+    // Load Register from I to CurrentInstruction.X to CurrentInstruction.Y. With CurrentInstruction.X > CurrentInstruction.Y or CurrentInstruction.X < CurrentInstruction.Y
+    {
+        int increment = 0;
+        for (int v = CurrentInstruction.X; CurrentInstruction.X <= CurrentInstruction.Y ? v <= CurrentInstruction.Y : v >= CurrentInstruction.Y; CurrentInstruction.X <= CurrentInstruction.Y ? v++ : v--)
+        {
+            Register[v] = MemoryBuffer[I + increment++];
+        }
+    }
+}
+
+void Emulator::Handle0x6()
+{
+    Register[CurrentInstruction.X] = CurrentInstruction.NN;
+}
+
+void Emulator::Handle0x7()
+{
+    Register[CurrentInstruction.X] += CurrentInstruction.NN;
+}
+
+void Emulator::Handle0x8()
+{
+    if (Opcode0x8Functions.count(CurrentInstruction.N))
+    {
+        auto Function = Opcode0x8Functions[CurrentInstruction.N];
+        (this->*Function)();
+    }
+    else
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+    }
+}
+
+void Emulator::Handle0x8XY0()
+{
+    Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
+}
+
+void Emulator::Handle0x8XY1()
+{
+    Register[CurrentInstruction.X] |= Register[CurrentInstruction.Y];
+    if (Type == 1)
+        Register[0xF] = 0;
+}
+
+void Emulator::Handle0x8XY2()
+{
+    Register[CurrentInstruction.X] &= Register[CurrentInstruction.Y];
+    if (Type == 1)
+        Register[0xF] = 0;
+}
+
+void Emulator::Handle0x8XY3()
+{
+    Register[CurrentInstruction.X] ^= Register[CurrentInstruction.Y];
+    if (Type == 1)
+        Register[0xF] = 0;
+}
+
+void Emulator::Handle0x8XY4()
+{
+    unsigned char overlfow = (unsigned char)(Register[CurrentInstruction.X] + Register[CurrentInstruction.Y]) < Register[CurrentInstruction.X] ? 1 : 0;
+    Register[CurrentInstruction.X] += Register[CurrentInstruction.Y];
+    Register[0xF] = overlfow;
+}
+
+void Emulator::Handle0x8XY5()
+{
+    unsigned char flag = Register[CurrentInstruction.X] >= Register[CurrentInstruction.Y];
+    Register[CurrentInstruction.X] -= Register[CurrentInstruction.Y];
+    Register[0xF] = flag;
+}
+
+void Emulator::Handle0x8XY6()
+{
+    if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
+        Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
+    unsigned char flag = Register[CurrentInstruction.X] & 0x1u;
+    Register[CurrentInstruction.X] = Register[CurrentInstruction.X] >> 1;
+    Register[0xF] = flag;
+}
+
+void Emulator::Handle0x8XY7()
+{
+    unsigned char flag = Register[CurrentInstruction.Y] >= Register[CurrentInstruction.X] ? 1 : 0;
+    Register[CurrentInstruction.X] = Register[CurrentInstruction.Y] - Register[CurrentInstruction.X];
+    Register[0xF] = flag;
+}
+
+void Emulator::Handle0x8XYE()
+{
+    if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
+        Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
+    unsigned char flag = Register[CurrentInstruction.X] >> 7u;
+    Register[CurrentInstruction.X] = Register[CurrentInstruction.X] << 1;
+    Register[0xF] = flag;
+}
+
+void Emulator::Handle0x9()
+{
+    if (Register[CurrentInstruction.X] != Register[CurrentInstruction.Y])
+    {
+        SkipNextInstruction();
+    }
+}
+
+void Emulator::Handle0xA()
+{
+    I = CurrentInstruction.NNN;
+}
+
+void Emulator::Handle0xB()
+{
+    PC = CurrentInstruction.NNN + Register[Type == 1 || Type == 4 ? 0 : CurrentInstruction.X];
+    bIncrementPC = false;
+}
+
+void Emulator::Handle0xC()
+{
+    Register[CurrentInstruction.X] = CurrentInstruction.NN & (unsigned char)(rand() % 0x100);
+}
+
+void Emulator::Handle0xD()
+{
+    int width = bInLowRes ? WidthLowRes : WidthHighRes;
+    int height = bInLowRes ? HeightLowRes : HeightHighRes;
+
+    int xCoord = Register[CurrentInstruction.X] % width;
+    int yCoord = Register[CurrentInstruction.Y] % height;
+
+    int BaseMemoryOffset{};
+
+    Register[0xF] = 0;
+
+    void (Emulator::*DrawFunc)(int, int, int, int, unsigned char, unsigned char, int);
+
+    std::vector<unsigned char> planesToDraw;
+    if (SelectedDrawingPlane & 0b01)
+    {
+        planesToDraw.push_back(0b01);
+    }
+    if (SelectedDrawingPlane & 0b10)
+    {
+        planesToDraw.push_back(0b10);
+    }
+
+    if (CurrentInstruction.N != 0 || (Type == 2 && CurrentInstruction.N == 0 && bInLowRes)) // SuperChip legacy only draw 8x16 in low res
+    {
+        if (CurrentInstruction.N == 0)
+        {
+            CurrentInstruction.N = 16;
+        }
+
+        DrawFunc = &Emulator::Draw8BitSprite;
+        BaseMemoryOffset = CurrentInstruction.N;
+    }
+    else
+    {
+        DrawFunc = &Emulator::Draw16BitSprite;
+        BaseMemoryOffset = 16 * 2;
+    }
+
+    if (planesToDraw.size())
+    {
+        for (auto i = 0u; i < planesToDraw.size(); i++)
+        {
+            (this->*DrawFunc)(width, height, xCoord, yCoord, CurrentInstruction.N, planesToDraw[i], BaseMemoryOffset * i);
+        }
+    }
+    else
+    {
+        std::cerr << "Trying to draw with no planes selected!" << std::endl;
+    }
+}
+
+void Emulator::Handle0xE()
+{
+    if (Opcode0xEFunctions.count(CurrentInstruction.NN))
+    {
+        auto Function = Opcode0xEFunctions[CurrentInstruction.NN];
+        (this->*Function)();
+    }
+    else
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+    }
+}
+
+void Emulator::Handle0xEX9E()
+{
+    if (InputMgr && InputMgr->IsKeyPressed(Register[CurrentInstruction.X]))
+    {
+        SkipNextInstruction();
+    }
+}
+
+void Emulator::Handle0xEXA1()
+{
+    if (InputMgr && !InputMgr->IsKeyPressed(Register[CurrentInstruction.X]))
+    {
+        SkipNextInstruction();
+    }
+}
+
+void Emulator::Handle0xF()
+{
+    if (Opcode0xFFunctions.count(CurrentInstruction.NN))
+    {
+        auto Function = Opcode0xFFunctions[CurrentInstruction.NN];
+        (this->*Function)();
+    }
+    else
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+    }
+}
+
+void Emulator::Handle0xF000()
+{
+    if (CurrentInstruction.NNN == 0)
+    {
+        unsigned char b1 = MemoryBuffer[PC + 2];
+        unsigned char b2 = MemoryBuffer[PC + 3];
+        I = (uint16_t(b1) << 8) | b2;
+        IncrementProgramCounter();
+    }
+    else
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+    }
+}
+
+void Emulator::Handle0xFX01()
+{
+    SelectedDrawingPlane = CurrentInstruction.X;
+}
+
+void Emulator::Handle0xF002()
+{
+    if (Type == 4 && CurrentInstruction.NNN == 0x002)
+    {
+        SoundMgr->LoadSoundArray(&MemoryBuffer[I], 0x10);
+    }
+    else
+    {
+        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+    }
+}
+
+void Emulator::Handle0xFX07()
+{
+    Register[CurrentInstruction.X] = DelayTimer;
+}
+
+void Emulator::Handle0xFX0A()
+{
+    if (InputMgr && InputMgr->IsAnyKeyReleased())
+    {
+        Register[CurrentInstruction.X] = InputMgr->GetReleasedKey();
+    }
+    else
+    {
+        bIncrementPC = false;
+    }
+}
+
+void Emulator::Handle0xFX15()
+{
+    DelayTimer = Register[CurrentInstruction.X];
+}
+
+void Emulator::Handle0xFX18()
+{
+    SoundTimer = Register[CurrentInstruction.X];
+    if (SoundMgr)
+    {
+        SoundMgr->PlayBeepSound(SoundTimer > 0);
+    }
+}
+
+void Emulator::Handle0xFX1E()
+{
+    bool UpdateFlags = I + Register[CurrentInstruction.X] >= MemoryBufferSize ? true : false;
+    I += Register[CurrentInstruction.X];
+    // Register[0xF] = UpdateFlags ? 1 : 0; // TODO: Add quirk
+}
+
+void Emulator::Handle0xFX29()
+{
+    I = FontOffset + Register[CurrentInstruction.X] * 5;
+}
+
+void Emulator::Handle0xFX30()
+{
+    I = HiResFontOffset + Register[CurrentInstruction.X] * 10;
+}
+
+void Emulator::Handle0xFX33()
+{
+    MemoryBuffer[I + 2] = (char)(Register[CurrentInstruction.X] % 10);
+    MemoryBuffer[I + 1] = (char)((Register[CurrentInstruction.X] / 10) % 10);
+    MemoryBuffer[I + 0] = (char)((Register[CurrentInstruction.X] / 100) % 10);
+}
+
+void Emulator::Handle0xFX3A()
+{
+    SoundMgr->SetPitch(std::powf(2.0f, (Register[CurrentInstruction.X] - 64) / 48.0f));
+}
+
+void Emulator::Handle0xFX55()
+{
+    for (unsigned char i = 0; i <= CurrentInstruction.X; i++)
+    {
+        MemoryBuffer[I + i] = Register[i];
+    }
+    if (Type == 1 || Type == 4)
+        I += CurrentInstruction.X + 1;
+}
+
+void Emulator::Handle0xFX65()
+{
+    for (unsigned char i = 0; i <= CurrentInstruction.X; i++)
+    {
+        Register[i] = MemoryBuffer[I + i];
+    }
+    if (Type == 1 || Type == 4)
+        I += CurrentInstruction.X + 1;
+}
+
+void Emulator::Handle0xFX75()
+{
+    // Create saves folder if it doesn't exists
+    std::filesystem::path savePath = std::filesystem::path(GetSaveFileName()).parent_path();
+    if (!savePath.empty())
+    {
+        std::filesystem::create_directories(savePath);
+    }
+
+    std::ofstream file(GetSaveFileName(), std::ios::out | std::ios::binary);
+    file.write(reinterpret_cast<char*>(Register), CurrentInstruction.X + 1);
+    file.close();
+}
+
+void Emulator::Handle0xFX85()
+{
+    std::ifstream file(GetSaveFileName(), std::ios::in | std::ios::binary);
+    file.read(reinterpret_cast<char*>(Register), CurrentInstruction.X + 1);
+    file.close();
+}
+
+void Emulator::SkipNextInstruction()
+{
+    if (Type == 4) // Skip 4 bytes opcodes
+    {
+        if (MemoryBuffer[PC + 2] == 0xF0 && MemoryBuffer[PC + 3] == 0x00)
+        {
+            IncrementProgramCounter();
+        }
+    }
+    IncrementProgramCounter();
 }

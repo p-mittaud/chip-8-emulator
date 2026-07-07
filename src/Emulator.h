@@ -4,6 +4,7 @@
 #include <string>
 #include <stack>
 #include <cstdint>
+#include <map>
 
 constexpr uint16_t FontOffset = 0x50u;
 constexpr uint16_t HiResFontOffset = 0xA0u;
@@ -112,6 +113,88 @@ private:
     std::string SaveDirectory{ "../saves/" };
 
     int SelectedDrawingPlane{1};
+
+    typedef void (Emulator::*OpcodeFunction)();
+    std::map<uint8_t, OpcodeFunction> OpcodeFunctions;
+
+    std::map<uint8_t, OpcodeFunction> Opcode0x0Functions;
+    std::map<uint8_t, OpcodeFunction> Opcode0x5Functions;
+    std::map<uint8_t, OpcodeFunction> Opcode0x8Functions;
+    std::map<uint8_t, OpcodeFunction> Opcode0xEFunctions;
+    std::map<uint8_t, OpcodeFunction> Opcode0xFFunctions;
+
+    void LoadOpcodes();
+    void LoadOpcodes0x0();
+    void LoadOpcodes0x5();
+    void LoadOpcodes0x8();
+    void LoadOpcodes0xE();
+    void LoadOpcodes0xF();
+
+    void Handle0x0();
+    void Handle0x0E0();
+    void Handle0x0EE();
+    void Handle0x0FF();
+    void Handle0x0FE();
+    void Handle0x0FB();
+    void Handle0x0FC();
+    void Handle0x0CN();
+    void Handle0x0DN();
+
+    void Handle0x1();
+    void Handle0x2();
+    void Handle0x3();
+    void Handle0x4();
+
+    void Handle0x5();
+    void Handle0x5XY0();
+    void Handle0x5XY2();
+    void Handle0x5XY3();
+
+    void Handle0x6();
+    void Handle0x7();
+    void Handle0x9();
+
+    void Handle0x8();
+    void Handle0x8XY0();
+    void Handle0x8XY1();
+    void Handle0x8XY2();
+    void Handle0x8XY3();
+    void Handle0x8XY4();
+    void Handle0x8XY5();
+    void Handle0x8XY6();
+    void Handle0x8XY7();
+    void Handle0x8XYE();
+
+    void Handle0xA();
+    void Handle0xB();
+    void Handle0xC();
+    void Handle0xD();
+
+    void Handle0xE();
+    void Handle0xEX9E();
+    void Handle0xEXA1();
+
+    void Handle0xF();
+    void Handle0xF000();
+    void Handle0xFX01();
+    void Handle0xF002();
+    void Handle0xFX07();
+    void Handle0xFX0A();
+    void Handle0xFX15();
+    void Handle0xFX18();
+    void Handle0xFX1E();
+    void Handle0xFX29();
+    void Handle0xFX30();
+    void Handle0xFX33();
+    void Handle0xFX3A();
+    void Handle0xFX55();
+    void Handle0xFX65();
+    void Handle0xFX75();
+    void Handle0xFX85();
+
+    void SkipNextInstruction();
+
+    bool bIncrementPC{ true };
 };
 
 #endif // __EMULATOR_H__
