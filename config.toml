@@ -1,12 +1,20 @@
 [Emulator]
-Type = 1 # 1: CHIP-8, 2: SCHIP-1.1, 3: SCHIP Modern, 4: XO-Chip
+# 1: CHIP-8, 2: SCHIP-1.1, 3: SCHIP Modern, 4: XO-Chip
+Type = 1
+
 FileROM = "../resources/default.ch8"
+
 BeepSound = "../resources/sounds/beep.wav"
+
+# It's up to the user to adapt InstructionsPerSecond. There is guidelines but sometimes you should tweak and test to find the best frequency for a given ROM.
+# 500 to 700 for CHIP-8, 1000 to 2000 for SUPER-CHIP, 10000 to 50000 for XO-CHIP
 InstructionsPerSecond = 700
 
 [Window]
 PixelSize = 10
 OffColor = [0, 0, 0]
-OnColor = [255, 255, 255] # Note: For XO-CHIP, OnColor is used when pixel are On for plane 1 and plane 2
+
+# Note: For XO-CHIP, OnColor is used when pixel are On for plane 1 and plane 2
+OnColor = [255, 255, 255] 
 Plane1Color = [255, 255, 0]
 Plane2Color = [0, 255, 255]
