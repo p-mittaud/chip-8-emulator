@@ -63,6 +63,7 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
     PC = 0x200;
 
     // Load the font in Memory Buffer
+    std::memcpy(MemoryBuffer, CHIP8Font, sizeof(CHIP8Font)); // Fix for binding.ch8 which doens't get the character but directly use I
     std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
     std::memcpy(&MemoryBuffer[HiResFontOffset], SuperChipFont, sizeof(SuperChipFont));
 }
@@ -76,6 +77,7 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::st
     PC = 0x200;
 
     // Load the font in Memory Buffer
+    std::memcpy(MemoryBuffer, CHIP8Font, sizeof(CHIP8Font)); // Fix for binding.ch8 which doens't get the character but directly use I
     std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
     std::memcpy(&MemoryBuffer[HiResFontOffset], SuperChipFont, sizeof(SuperChipFont));
 
