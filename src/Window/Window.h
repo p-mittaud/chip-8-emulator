@@ -17,6 +17,8 @@ struct WindowConfiguration
 {
     Color OffColor{ 0, 0, 0 };
     Color OnColor{ 255, 255, 255 };
+    Color Plane1Color{ 255, 0, 0 };
+    Color Plane2Color{ 0, 255, 0 };
 
     uint32_t PixelSize{ 10u };
 };

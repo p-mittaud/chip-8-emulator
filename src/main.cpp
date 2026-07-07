@@ -29,12 +29,18 @@ int main()
 
         // Window Config
         WindowConfig.PixelSize = config["Window"]["PixelSize"].value_or(PixelSize);
-        WindowConfig.OffColor.r = config["Window"]["OffColor"][0].value_or(0);
-        WindowConfig.OffColor.g = config["Window"]["OffColor"][1].value_or(0);
-        WindowConfig.OffColor.b = config["Window"]["OffColor"][2].value_or(0);
-        WindowConfig.OnColor.r = config["Window"]["OnColor"][0].value_or(0);
-        WindowConfig.OnColor.g = config["Window"]["OnColor"][1].value_or(0);
-        WindowConfig.OnColor.b = config["Window"]["OnColor"][2].value_or(0);
+        WindowConfig.OffColor.r = config["Window"]["OffColor"][0].value_or(WindowConfig.OffColor.r);
+        WindowConfig.OffColor.g = config["Window"]["OffColor"][1].value_or(WindowConfig.OffColor.g);
+        WindowConfig.OffColor.b = config["Window"]["OffColor"][2].value_or(WindowConfig.OffColor.b);
+        WindowConfig.OnColor.r = config["Window"]["OnColor"][0].value_or(WindowConfig.OnColor.r);
+        WindowConfig.OnColor.g = config["Window"]["OnColor"][1].value_or(WindowConfig.OnColor.g);
+        WindowConfig.OnColor.b = config["Window"]["OnColor"][2].value_or(WindowConfig.OnColor.b);
+        WindowConfig.Plane1Color.r = config["Window"]["Plane1Color"][0].value_or(WindowConfig.Plane1Color.r);
+        WindowConfig.Plane1Color.g = config["Window"]["Plane1Color"][1].value_or(WindowConfig.Plane1Color.g);
+        WindowConfig.Plane1Color.b = config["Window"]["Plane1Color"][2].value_or(WindowConfig.Plane1Color.b);
+        WindowConfig.Plane2Color.r = config["Window"]["Plane2Color"][0].value_or(WindowConfig.Plane2Color.r);
+        WindowConfig.Plane2Color.g = config["Window"]["Plane2Color"][1].value_or(WindowConfig.Plane2Color.g);
+        WindowConfig.Plane2Color.b = config["Window"]["Plane2Color"][2].value_or(WindowConfig.Plane2Color.b);
     }
     catch (const toml::parse_error& err) {
         std::cerr << "Failed to load TOML config file: " << err.description() << "\n";

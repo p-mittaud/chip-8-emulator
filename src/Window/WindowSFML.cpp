@@ -77,24 +77,21 @@ void WindowSFML::DrawDisplay(EmulatorDisplay InDisplay)
 
     sf::Color OffColor(WindowConfig.OffColor.r, WindowConfig.OffColor.g, WindowConfig.OffColor.b);
     sf::Color OnColor(WindowConfig.OnColor.r, WindowConfig.OnColor.g, WindowConfig.OnColor.b);
-
-    sf::Color FullColor(255, 255, 255);
-    sf::Color Color1(255, 0, 0);
-    sf::Color Color2(0, 255, 0);
+    sf::Color Color1(WindowConfig.Plane1Color.r, WindowConfig.Plane1Color.g, WindowConfig.Plane1Color.b);
+    sf::Color Color2(WindowConfig.Plane2Color.r, WindowConfig.Plane2Color.g, WindowConfig.Plane2Color.b);
 
     uint32_t PixelSize = WindowConfig.PixelSize * InDisplay.pixelSizeMultiplier;
     
     Window->clear(OffColor);
 
-    sf::RectangleShape rectangle({(float)PixelSize, (float)PixelSize});
-    rectangle.setFillColor(OnColor);
-
     uint32_t PixelNumber{ InDisplay.width * InDisplay.height };
+    sf::RectangleShape rectangle({(float)PixelSize, (float)PixelSize});
+    
     for (uint32_t i = 0; i < PixelNumber; i++)
     {
         if (InDisplay.display[i])
         {
-            rectangle.setFillColor(InDisplay.display[i] == 0b11 ? FullColor : InDisplay.display[i] == 0b01 ? Color1 : Color2);
+            rectangle.setFillColor(InDisplay.display[i] == 0b11 ? OnColor : InDisplay.display[i] == 0b01 ? Color1 : Color2);
             rectangle.setPosition({(float)(i % InDisplay.width * PixelSize), (float)(i / InDisplay.width * PixelSize)});
             Window->draw(rectangle);
         }
