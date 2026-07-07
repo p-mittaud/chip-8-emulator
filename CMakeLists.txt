@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
+
 project(chip-8-emulator CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -21,3 +22,20 @@ target_link_libraries(chip-8-emulator PRIVATE
 )
 
 target_include_directories(chip-8-emulator PRIVATE src)
+
+install(TARGETS chip-8-emulator DESTINATION .)
+
+if(WIN32)
+    if(NOT DEFINED VCPKG_TARGET_TRIPLET)
+        set(CURRENT_TRIPLET "x64-windows")
+    else()
+        set(CURRENT_TRIPLET ${VCPKG_TARGET_TRIPLET})
+    endif()
+
+    if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/${CURRENT_TRIPLET}/bin/")
+        install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${CURRENT_TRIPLET}/bin/"
+                DESTINATION .
+                FILES_MATCHING PATTERN "*.dll"
+        )
+    endif()
+endif()
