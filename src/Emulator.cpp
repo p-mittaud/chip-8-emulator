@@ -77,6 +77,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::st
 
 bool Emulator::LoadROM(const std::string& InFile)
 {
+    bShouldStop = false;
+
     auto lastBackslashPos = InFile.find_last_of('\\');
     auto lastSlashPos = InFile.find_last_of('/');
     size_t index = lastBackslashPos == std::string::npos ? lastSlashPos : lastBackslashPos;
@@ -88,6 +90,7 @@ bool Emulator::LoadROM(const std::string& InFile)
     if (!file.is_open())
     {
         std::cerr << "Failed to find file \"" << InFile << "\"!" << std::endl;
+        HandleError();
         return false;
     }
 
@@ -389,7 +392,7 @@ void Emulator::Handle0x0()
 {
     if (CurrentInstruction.X != 0)
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
         return;
     }
 
@@ -407,7 +410,7 @@ void Emulator::Handle0x0()
         }
         else
         {
-            std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+            HandleOpcodeError();
         }
     }
 }
@@ -579,7 +582,7 @@ void Emulator::Handle0x5()
     }
     else
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
     }
 }
 
@@ -638,7 +641,7 @@ void Emulator::Handle0x8()
     }
     else
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
     }
 }
 
@@ -793,7 +796,7 @@ void Emulator::Handle0xE()
     }
     else
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
     }
 }
 
@@ -822,7 +825,7 @@ void Emulator::Handle0xF()
     }
     else
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
     }
 }
 
@@ -837,7 +840,7 @@ void Emulator::Handle0xF000()
     }
     else
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
     }
 }
 
@@ -854,7 +857,7 @@ void Emulator::Handle0xF002()
     }
     else
     {
-        std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+        HandleOpcodeError();
     }
 }
 
@@ -969,4 +972,16 @@ void Emulator::SkipNextInstruction()
         }
     }
     IncrementProgramCounter();
+}
+
+void Emulator::HandleError()
+{
+    bShouldStop = true;
+}
+
+void Emulator::HandleOpcodeError()
+{
+    std::cerr << "Failed to find opcode for " << std::hex << (int)CurrentInstruction.Opcode << (int)CurrentInstruction.X << (int)CurrentInstruction.Y << (int)CurrentInstruction.N << std::endl;
+
+    HandleError();
 }

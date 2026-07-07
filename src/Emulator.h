@@ -78,41 +78,13 @@ public:
 
     std::string GetSaveFileName() const;
 
+    bool ShouldStop() const { return bShouldStop; }
+
 private:
     void IncrementProgramCounter();
 
     void Draw8BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset);
     void Draw16BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset);
-
-
-    unsigned char MemoryBuffer[0x10000]{0};
-    uint32_t MemoryBufferSize{0};
-    unsigned char Register[16]{0};
-
-    unsigned char DelayTimer{0};
-    unsigned char SoundTimer{0};
-
-    std::stack<uint16_t> Stack{};
-
-    uint16_t PC{};  // The program counter
-    uint16_t I{};   // The Index Register
-
-    Instruction CurrentInstruction{};
-
-    unsigned char Display[DisplaySize]{0}; // Array of pixels
-
-    bool bInLowRes { true };
-
-    InputManager* InputMgr{};
-    SoundManager* SoundMgr{};
-
-    int Type{};
-
-    std::string CurrentROMName{};
-
-    std::string SaveDirectory{ "../saves/" };
-
-    int SelectedDrawingPlane{1};
 
     typedef void (Emulator::*OpcodeFunction)();
     std::map<uint8_t, OpcodeFunction> OpcodeFunctions;
@@ -194,7 +166,37 @@ private:
 
     void SkipNextInstruction();
 
+    void HandleError();
+    void HandleOpcodeError();
+
+    // Memory and Register
+    unsigned char MemoryBuffer[0x10000]{0};
+    uint32_t MemoryBufferSize{0};
+    unsigned char Register[16]{0};
+    uint16_t PC{};  // The program counter
+    uint16_t I{};   // The Index Register
     bool bIncrementPC{ true };
+
+    unsigned char DelayTimer{0};
+    unsigned char SoundTimer{0};
+
+    std::stack<uint16_t> Stack{};
+
+    unsigned char Display[DisplaySize]{0}; // Array of pixels
+    bool bInLowRes { true };
+    int SelectedDrawingPlane{1};
+
+    int Type{};
+    
+    InputManager* InputMgr{};
+    SoundManager* SoundMgr{};
+    
+    Instruction CurrentInstruction{};
+
+    std::string CurrentROMName{};
+    std::string SaveDirectory{ "../saves/" };
+
+    bool bShouldStop{ false };
 };
 
 #endif // __EMULATOR_H__
