@@ -41,6 +41,11 @@ int main()
         WindowConfig.Plane2Color.r = config["Window"]["Plane2Color"][0].value_or(WindowConfig.Plane2Color.r);
         WindowConfig.Plane2Color.g = config["Window"]["Plane2Color"][1].value_or(WindowConfig.Plane2Color.g);
         WindowConfig.Plane2Color.b = config["Window"]["Plane2Color"][2].value_or(WindowConfig.Plane2Color.b);
+
+        if (EmulatorType != 4)
+        {
+            WindowConfig.Plane1Color = WindowConfig.OnColor;
+        }
     }
     catch (const toml::parse_error& err) {
         std::cerr << "Failed to load TOML config file: " << err.description() << "\n";
