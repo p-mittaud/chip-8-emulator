@@ -25,6 +25,26 @@ constexpr uint32_t HeightLowRes = 32;
 constexpr uint32_t WidthHighRes = 128;
 constexpr uint32_t HeightHighRes = 64;
 
+struct Instruction
+{
+    Instruction() = default;
+
+    Instruction(uint8_t InByte1, uint8_t InByte2)
+    {
+        NN = InByte2;
+
+        // Parse the content of instruction
+        Opcode = InByte1 >> 4;
+        X = InByte1 & 0xF;
+        Y = NN >> 4;
+        N = NN & 0xF;
+        NNN = (uint16_t(X) << 8) | NN;
+    }
+
+    unsigned char Opcode{}, X{}, Y{}, N{}, NN{};
+    uint16_t NNN {};
+};
+
 class Emulator
 {
 public:
@@ -37,7 +57,6 @@ public:
     void DecrementTimers();
     void ProcessInstruction();
 
-    // const bool* GetDisplay() const { return Display; }
     EmulatorDisplay GetDisplay() const
     {
         return EmulatorDisplay
@@ -65,7 +84,6 @@ private:
     void Draw16BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset);
 
 
-    // unsigned char MemoryBuffer[0x1000]{0};
     unsigned char MemoryBuffer[0x10000]{0};
     uint32_t MemoryBufferSize{0};
     unsigned char Register[16]{0};
@@ -76,14 +94,11 @@ private:
     std::stack<uint16_t> Stack{};
 
     uint16_t PC{};  // The program counter
-    // unsigned char* I{nullptr};   // The Index Register
-    uint16_t I{}; // The Index Register
+    uint16_t I{};   // The Index Register
 
-    // bool Display[DisplaySize]{false}; // Array of pixels
+    Instruction CurrentInstruction{};
+
     unsigned char Display[DisplaySize]{0}; // Array of pixels
-
-    bool UpdateVXBeforeShift = true;
-    bool UseCosmacJump = true;
 
     bool bInLowRes { true };
 

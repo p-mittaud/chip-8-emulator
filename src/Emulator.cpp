@@ -69,18 +69,8 @@ Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, int InType)
 }
 
 Emulator::Emulator(InputManager* InInputMgr, SoundManager* InSMgr, const std::string& InROM, int InType)
-    : InputMgr{InInputMgr}, SoundMgr{InSMgr}, Type{InType}
+    : Emulator(InInputMgr, InSMgr, InType)
 {
-    MemoryBufferSize = Type == 4 ? 0x10000 : 0x1000;
-
-    // Set Program Counter to the beginning of the loaded rom
-    PC = 0x200;
-
-    // Load the font in Memory Buffer
-    std::memcpy(MemoryBuffer, CHIP8Font, sizeof(CHIP8Font)); // Fix for binding.ch8 which doens't get the character but directly use I
-    std::memcpy(&MemoryBuffer[FontOffset], CHIP8Font, sizeof(CHIP8Font));
-    std::memcpy(&MemoryBuffer[HiResFontOffset], SuperChipFont, sizeof(SuperChipFont));
-
     LoadROM(InROM);
 }
 
@@ -128,45 +118,34 @@ void Emulator::DecrementTimers()
 
 void Emulator::ProcessInstruction()
 {
-    // Could create struct Instruction
+    CurrentInstruction = Instruction(MemoryBuffer[PC], MemoryBuffer[PC + 1]);
 
-    // Read the two bytes of the instruction
-    unsigned char byte1 = MemoryBuffer[PC];
-    unsigned char NN = MemoryBuffer[PC + 1];
-
-    // Parse the content of instruction
-    unsigned char Opcode = byte1 >> 4;
-    unsigned char X = byte1 & 0xF;
-    unsigned char Y = NN >> 4;
-    unsigned char N = NN & 0xF;
-    uint16_t NNN = (uint16_t(X) << 8) | NN;
-
-    switch (Opcode)
+    switch (CurrentInstruction.Opcode)
     {
         case 0x0:
-            if (NNN == 0xE0)
+            if (CurrentInstruction.NNN == 0xE0)
             {
                 // Clear screen
                 std::transform(Display, Display + DisplaySize, Display,
                     [=](unsigned char pixel) { return pixel & ~SelectedDrawingPlane; }
                 );
             }
-            else if (NNN == 0x0EE)
+            else if (CurrentInstruction.NNN == 0x0EE)
             {
                 PC = Stack.top();
                 Stack.pop();
             }
-            else if (NNN == 0x0FF)
+            else if (CurrentInstruction.NNN == 0x0FF)
             {
                 bInLowRes = false;
                 memset(Display, false, DisplaySize);
             }
-            else if (NNN == 0x0FE)
+            else if (CurrentInstruction.NNN == 0x0FE)
             {
                 bInLowRes = true;
                 memset(Display, false, DisplaySize);
             }
-            else if (NNN == 0x0FB)
+            else if (CurrentInstruction.NNN == 0x0FB)
             {
                 // Scroll right
                 int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
@@ -194,7 +173,7 @@ void Emulator::ProcessInstruction()
                     );
                 }
             }
-            else if (NNN == 0x0FC)
+            else if (CurrentInstruction.NNN == 0x0FC)
             {
                 // Scroll left
                 int ScrollPixelNumber = (Type == 2 && bInLowRes ? 2 : 4);
@@ -218,11 +197,11 @@ void Emulator::ProcessInstruction()
                     );
                 }
             }
-            else if (X == 0x0 && Y == 0xC) // Scroll Down
+            else if (CurrentInstruction.X == 0x0 && CurrentInstruction.Y == 0xC) // Scroll Down
             {
                 if (Type == 2 && bInLowRes)
                 {
-                    N /= 2;
+                    CurrentInstruction.N /= 2;
                 }
 
                 auto width = bInLowRes ? WidthLowRes : WidthHighRes;
@@ -231,34 +210,34 @@ void Emulator::ProcessInstruction()
                 unsigned char DisplayCopy[width * height];
                 memcpy(DisplayCopy, Display, sizeof(DisplayCopy));
 
-                std::transform(DisplayCopy, DisplayCopy + width * height - N * width, Display + N * width, Display + N * width,
+                std::transform(DisplayCopy, DisplayCopy + width * height - CurrentInstruction.N * width, Display + CurrentInstruction.N * width, Display + CurrentInstruction.N * width,
                     [=](unsigned char srcPixel, unsigned char destPixel)
                     {
                         return (srcPixel & SelectedDrawingPlane) | (destPixel & ~SelectedDrawingPlane);
                     }
                 );
 
-                std::transform(Display, Display + N * width, Display,
+                std::transform(Display, Display + CurrentInstruction.N * width, Display,
                     [=](unsigned char pixel)
                     {
                         return pixel & ~SelectedDrawingPlane;
                     }
                 );
             }
-            else if (X == 0x0 && Y == 0xD && Type == 4) // Scroll Up
+            else if (CurrentInstruction.X == 0x0 && CurrentInstruction.Y == 0xD && Type == 4) // Scroll Up
             {
                 auto width = bInLowRes ? WidthLowRes : WidthHighRes;
                 auto height = bInLowRes ? HeightLowRes : HeightHighRes;
 
                 // Scrolls pixel up
-                std::transform(Display, Display + width * height - N * width, Display + N * width, Display, 
+                std::transform(Display, Display + width * height - CurrentInstruction.N * width, Display + CurrentInstruction.N * width, Display, 
                     [=](unsigned char srcPixel, unsigned char destPixel)
                     {
                         return (srcPixel & ~SelectedDrawingPlane) | (destPixel & SelectedDrawingPlane);
                     }
                 );
                 // Clear remaining pixels
-                std::transform(Display + width * height - N * width, Display + width * height - 1, Display + width * height - N * width, 
+                std::transform(Display + width * height - CurrentInstruction.N * width, Display + width * height - 1, Display + width * height - CurrentInstruction.N * width, 
                     [=](unsigned char pixel)
                     {
                         return pixel & ~SelectedDrawingPlane;
@@ -267,22 +246,22 @@ void Emulator::ProcessInstruction()
             }
             else
             {
-                std::cerr << "Opcode " << std::hex << (int)Opcode << NNN << " not handled!" << std::endl;
+                std::cerr << "CurrentInstruction.Opcode " << std::hex << (int)CurrentInstruction.Opcode << CurrentInstruction.NNN << " not handled!" << std::endl;
             }
             break;
 
         case 0x1:
             // Jump to memory address
-            PC = NNN;
+            PC = CurrentInstruction.NNN;
             return;
         case 0x2:
             // Start subroutine
             Stack.push(PC);
-            PC = NNN;
+            PC = CurrentInstruction.NNN;
             // As we jump, we don't want to increment PC
             return;
         case 0x3:
-            if (Register[X] == NN)
+            if (Register[CurrentInstruction.X] == CurrentInstruction.NN)
             {
                 if (Type == 4) // Skip 4 bytes opcodes
                 {
@@ -295,7 +274,7 @@ void Emulator::ProcessInstruction()
             }
             break;
         case 0x4:
-            if (Register[X] != NN)
+            if (Register[CurrentInstruction.X] != CurrentInstruction.NN)
             {
                 if (Type == 4) // Skip 4 bytes opcodes
                 {
@@ -308,11 +287,11 @@ void Emulator::ProcessInstruction()
             }
             break;
         case 0x5:
-            switch (N)
+            switch (CurrentInstruction.N)
             {
                 case 0:
                 {
-                if (Register[X] == Register[Y])
+                if (Register[CurrentInstruction.X] == Register[CurrentInstruction.Y])
                 {
                     if (Type == 4) // Skip 4 bytes opcodes
                     {
@@ -328,10 +307,10 @@ void Emulator::ProcessInstruction()
                 case 2:
                     if (Type != 4)
                         break;
-                    // Write registers X to Y to I. With X > Y or X < Y
+                    // Write registers CurrentInstruction.X to CurrentInstruction.Y to I. With CurrentInstruction.X > CurrentInstruction.Y or CurrentInstruction.X < CurrentInstruction.Y
                     {
                         int increment = 0;
-                        for (int v = X; X <= Y ? v <= Y : v >= Y; X <= Y ? v++ : v--)
+                        for (int v = CurrentInstruction.X; CurrentInstruction.X <= CurrentInstruction.Y ? v <= CurrentInstruction.Y : v >= CurrentInstruction.Y; CurrentInstruction.X <= CurrentInstruction.Y ? v++ : v--)
                         {
                             MemoryBuffer[I + increment++] = Register[v];
                         }
@@ -340,92 +319,92 @@ void Emulator::ProcessInstruction()
                 case 3:
                     if (Type != 4)
                         break;
-                    // Load Register from I to X to Y. With X > Y or X < Y
+                    // Load Register from I to CurrentInstruction.X to CurrentInstruction.Y. With CurrentInstruction.X > CurrentInstruction.Y or CurrentInstruction.X < CurrentInstruction.Y
                     {
                         int increment = 0;
-                        for (int v = X; X <= Y ? v <= Y : v >= Y; X <= Y ? v++ : v--)
+                        for (int v = CurrentInstruction.X; CurrentInstruction.X <= CurrentInstruction.Y ? v <= CurrentInstruction.Y : v >= CurrentInstruction.Y; CurrentInstruction.X <= CurrentInstruction.Y ? v++ : v--)
                         {
                             Register[v] = MemoryBuffer[I + increment++];
                         }
                     }
                     break;
                 default:
-                    std::cerr << "Operation 0x5XY" << N << " is not handled!" << std::endl;
+                    std::cerr << "Operation 0x5XY" << CurrentInstruction.N << " is not handled!" << std::endl;
                     break;
             }
             break;
         case 0x6:
-            Register[X] = NN;
+            Register[CurrentInstruction.X] = CurrentInstruction.NN;
             break;
         case 0x7:
-            Register[X] += NN;
+            Register[CurrentInstruction.X] += CurrentInstruction.NN;
             break;
         case 0x8:
-            switch (N)
+            switch (CurrentInstruction.N)
             {
                 case 0x0:
-                Register[X] = Register[Y];
+                Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
                     break;
                 case 0x1:
-                Register[X] |= Register[Y];
+                Register[CurrentInstruction.X] |= Register[CurrentInstruction.Y];
                 if (Type == 1)
                     Register[0xF] = 0;
                     break;
                 case 0x2:
-                Register[X] &= Register[Y];
+                Register[CurrentInstruction.X] &= Register[CurrentInstruction.Y];
                 if (Type == 1)
                     Register[0xF] = 0;
                     break;
                 case 0x3:
-                Register[X] ^= Register[Y];
+                Register[CurrentInstruction.X] ^= Register[CurrentInstruction.Y];
                 if (Type == 1)
                     Register[0xF] = 0;
                     break;
                 case 0x4:
                 {
-                    unsigned char overlfow = (unsigned char)(Register[X] + Register[Y]) < Register[X] ? 1 : 0;
-                    Register[X] += Register[Y];
+                    unsigned char overlfow = (unsigned char)(Register[CurrentInstruction.X] + Register[CurrentInstruction.Y]) < Register[CurrentInstruction.X] ? 1 : 0;
+                    Register[CurrentInstruction.X] += Register[CurrentInstruction.Y];
                     Register[0xF] = overlfow;
                 }
                     break;
                 case 0x5:
                 {
-                    unsigned char flag = Register[X] >= Register[Y];
-                    Register[X] -= Register[Y];
+                    unsigned char flag = Register[CurrentInstruction.X] >= Register[CurrentInstruction.Y];
+                    Register[CurrentInstruction.X] -= Register[CurrentInstruction.Y];
                     Register[0xF] = flag;
                 }
                     break;
                 case 0x6:
                 {
                     if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
-                        Register[X] = Register[Y];
-                    unsigned char flag = Register[X] & 0x1u;
-                    Register[X] = Register[X] >> 1;
+                        Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
+                    unsigned char flag = Register[CurrentInstruction.X] & 0x1u;
+                    Register[CurrentInstruction.X] = Register[CurrentInstruction.X] >> 1;
                     Register[0xF] = flag;
                 }
                     break;
                 case 0x7:
                 {
-                    unsigned char flag = Register[Y] >= Register[X] ? 1 : 0;
-                    Register[X] = Register[Y] - Register[X];
+                    unsigned char flag = Register[CurrentInstruction.Y] >= Register[CurrentInstruction.X] ? 1 : 0;
+                    Register[CurrentInstruction.X] = Register[CurrentInstruction.Y] - Register[CurrentInstruction.X];
                     Register[0xF] = flag;
                 }
                     break;
                 case 0xE:
                 {
                     if (Type == 1 || Type == 4) // CHIP-8 COSMAC VIP Quirk
-                        Register[X] = Register[Y];
-                    unsigned char flag = Register[X] >> 7u;
-                    Register[X] = Register[X] << 1;
+                        Register[CurrentInstruction.X] = Register[CurrentInstruction.Y];
+                    unsigned char flag = Register[CurrentInstruction.X] >> 7u;
+                    Register[CurrentInstruction.X] = Register[CurrentInstruction.X] << 1;
                     Register[0xF] = flag;
                 }
                     break;
                 default:
-                    std::cerr << "Case " << N << " not handled!" << std::endl;
+                    std::cerr << "Case " << CurrentInstruction.N << " not handled!" << std::endl;
             }
             break;
         case 0x9:
-            if (Register[X] != Register[Y])
+            if (Register[CurrentInstruction.X] != Register[CurrentInstruction.Y])
             {
                 if (Type == 4) // Skip 4 bytes opcodes
                 {
@@ -438,28 +417,28 @@ void Emulator::ProcessInstruction()
             }
             break;
         case 0xA:
-            I = NNN;
+            I = CurrentInstruction.NNN;
             break;
         case 0xB:
-            PC = NNN + Register[Type == 1 || Type == 4 ? 0 : X];
+            PC = CurrentInstruction.NNN + Register[Type == 1 || Type == 4 ? 0 : CurrentInstruction.X];
             return;
         case 0xC:
-            Register[X] = NN & (unsigned char)(rand() % 0x100);
+            Register[CurrentInstruction.X] = CurrentInstruction.NN & (unsigned char)(rand() % 0x100);
             break;
         case 0xD:
         {
             int width = bInLowRes ? WidthLowRes : WidthHighRes;
             int height = bInLowRes ? HeightLowRes : HeightHighRes;
 
-            int xCoord = Register[X] % width;
-            int yCoord = Register[Y] % height;
+            int xCoord = Register[CurrentInstruction.X] % width;
+            int yCoord = Register[CurrentInstruction.Y] % height;
             Register[0xF] = 0;
 
-            if (N != 0 || (Type == 2 && N == 0 && bInLowRes)) // SuperChip legacy only draw 8x16 in low res
+            if (CurrentInstruction.N != 0 || (Type == 2 && CurrentInstruction.N == 0 && bInLowRes)) // SuperChip legacy only draw 8x16 in low res
             {
-                if (N == 0)
+                if (CurrentInstruction.N == 0)
                 {
-                    N = 16;
+                    CurrentInstruction.N = 16;
                 }
 
                 std::vector<unsigned char> planesToDraw;
@@ -476,7 +455,7 @@ void Emulator::ProcessInstruction()
                 {
                     for (auto i = 0u; i < planesToDraw.size(); i++)
                     {
-                        Draw8BitSprite(width, height, xCoord, yCoord, N, planesToDraw[i], N * i);
+                        Draw8BitSprite(width, height, xCoord, yCoord, CurrentInstruction.N, planesToDraw[i], CurrentInstruction.N * i);
                     }
                 }
                 else
@@ -500,7 +479,7 @@ void Emulator::ProcessInstruction()
                 {
                     for (auto i = 0u; i < planesToDraw.size(); i++)
                     {
-                         Draw16BitSprite(width, height, xCoord, yCoord, N, planesToDraw[i], 16 * 2 * i);
+                         Draw16BitSprite(width, height, xCoord, yCoord, CurrentInstruction.N, planesToDraw[i], 16 * 2 * i);
                     }
                 }
                 else
@@ -511,9 +490,9 @@ void Emulator::ProcessInstruction()
         }
             break;
         case 0xE:
-            if (NN == 0x9E)
+            if (CurrentInstruction.NN == 0x9E)
             {
-                if (InputMgr && InputMgr->IsKeyPressed(Register[X]))
+                if (InputMgr && InputMgr->IsKeyPressed(Register[CurrentInstruction.X]))
                 {
                     if (Type == 4) // Skip 4 bytes opcodes
                     {
@@ -525,9 +504,9 @@ void Emulator::ProcessInstruction()
                     IncrementProgramCounter();
                 }
             }
-            else if (NN == 0xA1)
+            else if (CurrentInstruction.NN == 0xA1)
             {
-                if (InputMgr && !InputMgr->IsKeyPressed(Register[X]))
+                if (InputMgr && !InputMgr->IsKeyPressed(Register[CurrentInstruction.X]))
                 {
                     if (Type == 4) // Skip 4 bytes opcodes
                     {
@@ -541,11 +520,11 @@ void Emulator::ProcessInstruction()
             }
             else
             {
-                std::cerr << std::hex << "Invalid NN \"" << (int)NN << "\" for operation " << (int)Opcode << std::dec << std::endl;
+                std::cerr << std::hex << "Invalid CurrentInstruction.NN \"" << (int)CurrentInstruction.NN << "\" for operation " << (int)CurrentInstruction.Opcode << std::dec << std::endl;
             }
             break;
         case 0xF:
-            if (Type == 4 && NNN == 0)
+            if (Type == 4 && CurrentInstruction.NNN == 0)
             {
                 unsigned char b1 = MemoryBuffer[PC + 2];
                 unsigned char b2 = MemoryBuffer[PC + 3];
@@ -553,29 +532,29 @@ void Emulator::ProcessInstruction()
                 IncrementProgramCounter();
                 break;
             }
-            if (Type == 4 && NNN == 0x002)
+            if (Type == 4 && CurrentInstruction.NNN == 0x002)
             {
                 SoundMgr->LoadSoundArray(&MemoryBuffer[I], 0x10);
                 break;
             }
-            switch (NN)
+            switch (CurrentInstruction.NN)
             {
                 case 0x01:
                     if (Type == 4)
                     {
-                        SelectedDrawingPlane = X;
+                        SelectedDrawingPlane = CurrentInstruction.X;
                     }
                     else
-                        std::cerr << std::hex << (int)NN << " is not handled!" << std::endl;
+                        std::cerr << std::hex << (int)CurrentInstruction.NN << " is not handled!" << std::endl;
                     break;
                 case 0x07:
-                    Register[X] = DelayTimer;
+                    Register[CurrentInstruction.X] = DelayTimer;
                     break;
                 case 0x15:
-                    DelayTimer = Register[X];
+                    DelayTimer = Register[CurrentInstruction.X];
                     break;
                 case 0x18:
-                    SoundTimer = Register[X];
+                    SoundTimer = Register[CurrentInstruction.X];
                     if (SoundMgr)
                     {
                         SoundMgr->PlayBeepSound(SoundTimer > 0);
@@ -583,47 +562,47 @@ void Emulator::ProcessInstruction()
                     break;
                 case 0x1E:
                     {
-                        bool UpdateFlags = I + Register[X] >= MemoryBufferSize ? true : false;
-                        I += Register[X];
+                        bool UpdateFlags = I + Register[CurrentInstruction.X] >= MemoryBufferSize ? true : false;
+                        I += Register[CurrentInstruction.X];
                         // Register[0xF] = UpdateFlags ? 1 : 0; // TODO: Add quirk
                     }
                     break;
                 case 0x29:
-                    I = FontOffset + Register[X] * 5;
+                    I = FontOffset + Register[CurrentInstruction.X] * 5;
                     break;
                 case 0x30:
-                    I = HiResFontOffset + Register[X] * 10;
+                    I = HiResFontOffset + Register[CurrentInstruction.X] * 10;
                     break;
                 case 0x33:
-                    MemoryBuffer[I + 2] = (char)(Register[X] % 10);
-                    MemoryBuffer[I + 1] = (char)((Register[X] / 10) % 10);
-                    MemoryBuffer[I + 0] = (char)((Register[X] / 100) % 10);
+                    MemoryBuffer[I + 2] = (char)(Register[CurrentInstruction.X] % 10);
+                    MemoryBuffer[I + 1] = (char)((Register[CurrentInstruction.X] / 10) % 10);
+                    MemoryBuffer[I + 0] = (char)((Register[CurrentInstruction.X] / 100) % 10);
                     break;
                 case 0x3A:
                     if (Type != 4)
                     {
-                        std::cerr << std::hex << (int)NN << " is not handled!" << std::endl;
+                        std::cerr << std::hex << (int)CurrentInstruction.NN << " is not handled!" << std::endl;
                         break;
                     }
                     {
-                        SoundMgr->SetPitch(std::powf(2.0f, (Register[X] - 64) / 48.0f));
+                        SoundMgr->SetPitch(std::powf(2.0f, (Register[CurrentInstruction.X] - 64) / 48.0f));
                     }
                     break;
                 case 0x55:
-                    for (unsigned char i = 0; i <= X; i++)
+                    for (unsigned char i = 0; i <= CurrentInstruction.X; i++)
                     {
                         MemoryBuffer[I + i] = Register[i];
                     }
                     if (Type == 1 || Type == 4)
-                        I += X + 1;
+                        I += CurrentInstruction.X + 1;
                     break;
                 case 0x65:
-                    for (unsigned char i = 0; i <= X; i++)
+                    for (unsigned char i = 0; i <= CurrentInstruction.X; i++)
                     {
                         Register[i] = MemoryBuffer[I + i];
                     }
                     if (Type == 1 || Type == 4)
-                        I += X + 1;
+                        I += CurrentInstruction.X + 1;
                     break;
 
                 case 0x75:
@@ -636,14 +615,14 @@ void Emulator::ProcessInstruction()
                         }
 
                         std::ofstream file(GetSaveFileName(), std::ios::out | std::ios::binary);
-                        file.write(reinterpret_cast<char*>(Register), X + 1);
+                        file.write(reinterpret_cast<char*>(Register), CurrentInstruction.X + 1);
                         file.close();
                     }
                     break;
                 case 0x85:
                     {
                         std::ifstream file(GetSaveFileName(), std::ios::in | std::ios::binary);
-                        file.read(reinterpret_cast<char*>(Register), X + 1);
+                        file.read(reinterpret_cast<char*>(Register), CurrentInstruction.X + 1);
                         file.close();
                     }
                     break;
@@ -651,7 +630,7 @@ void Emulator::ProcessInstruction()
                 case 0x0A:
                     if (InputMgr && InputMgr->IsAnyKeyReleased())
                     {
-                        Register[X] = InputMgr->GetReleasedKey();
+                        Register[CurrentInstruction.X] = InputMgr->GetReleasedKey();
                     }
                     else
                     {
@@ -659,11 +638,11 @@ void Emulator::ProcessInstruction()
                     }
                     break;
                 default:
-                    std::cerr << std::hex << (int)NN << " is not handled!" << std::endl;
+                    std::cerr << std::hex << (int)CurrentInstruction.NN << " is not handled!" << std::endl;
             }
             break;
         default:
-            std::cerr << std::hex << "Opcode " << (int)Opcode << " not handled!" << std::dec << std::endl;
+            std::cerr << std::hex << "CurrentInstruction.Opcode " << (int)CurrentInstruction.Opcode << " not handled!" << std::dec << std::endl;
             break;
     }
 
@@ -672,7 +651,7 @@ void Emulator::ProcessInstruction()
 
 void Emulator::Draw8BitSprite(int width, int height, int xCoord, int yCoord, unsigned char N, unsigned char byteOffset, int memoryOffset)
 {
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < CurrentInstruction.N; i++)
     {
         // If XO-CHIP, we wrap
         int yCoordDesired = yCoord + i;
